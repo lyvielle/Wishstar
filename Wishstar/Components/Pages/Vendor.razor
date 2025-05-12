@@ -1,0 +1,315 @@
+﻿@page "/vendor"
+@using Wishstar.Components.Pages.Context
+@using Wishstar.Extensions
+@using Wishstar.Models
+@inject NavigationManager NavigationManager
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IJSRuntime JSRuntime
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Add Vendor - Wishstar</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<style>
+		:root {
+			--primary: #FFB3C6;
+			--secondary: #FFE5EC;
+			--mica: rgba(255, 245, 247, 0.92);
+			--text: #4A4A4A;
+			--error: #FF6B6B;
+		}
+
+		body {
+			font-family: 'Segoe UI', system-ui, sans-serif;
+			color: var(--text);
+			margin: 0;
+			min-height: 100vh;
+			background: linear-gradient(135deg, #FFF0F3, #FFFAFB);
+			animation: gradientFlow 15s ease infinite;
+			background-size: 200% 200%;
+		}
+
+		@@keyframes gradientFlow {
+			0% {
+				background-position: 0% 50%;
+			}
+
+			50% {
+				background-position: 100% 50%;
+			}
+
+			100% {
+				background-position: 0% 50%;
+			}
+		}
+
+		.container {
+			max-width: 800px;
+			margin: 0 auto;
+			padding: 2rem;
+			position: relative;
+		}
+
+		.container::before {
+			content: '';
+			position: fixed;
+			top: 2rem;
+			left: 50%;
+			transform: translateX(-50%);
+			width: calc(100% - 4rem);
+			height: calc(100% - 4rem);
+			background: var(--mica);
+			backdrop-filter: blur(20px);
+			border-radius: 2rem;
+			border: 1px solid rgba(255, 179, 198, 0.3);
+			z-index: -1;
+			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+		}
+
+		.back-btn {
+			background: rgba(255, 179, 198, 0.15);
+			color: var(--primary);
+			padding: 0.8rem 1.5rem;
+			border-radius: 2rem;
+			border: 1px solid var(--secondary);
+			backdrop-filter: blur(5px);
+			cursor: pointer;
+			transition: all 0.2s ease;
+			position: absolute;
+			left: 3rem;
+			top: 3rem;
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			z-index: 2;
+		}
+
+		.back-btn:hover {
+			background: var(--primary);
+			color: white;
+		}
+
+		.vendor-form {
+			background: rgba(255, 255, 255, 0.8);
+			backdrop-filter: blur(10px);
+			border-radius: 1.5rem;
+			padding: 2rem;
+			border: 1px solid rgba(255, 179, 198, 0.2);
+			margin-top: 4rem;
+		}
+
+		.form-group {
+			margin-bottom: 1.5rem;
+		}
+
+		label {
+			display: block;
+			margin-bottom: 0.5rem;
+			font-weight: 500;
+		}
+
+		input {
+			width: 100%;
+			padding: 0.8rem 1.5rem;
+			border: 1px solid var(--secondary);
+			border-radius: 2rem;
+			background: rgba(255, 255, 255, 0.7);
+			backdrop-filter: blur(5px);
+			font-size: 1rem;
+			transition: all 0.2s ease;
+		}
+
+		input:focus {
+			outline: none;
+			box-shadow: 0 0 0 2px var(--primary);
+		}
+
+		.form-actions {
+			display: flex;
+			justify-content: flex-end;
+			gap: 1rem;
+			margin-top: 3rem;
+			padding-top: 2rem;
+			border-top: 1px solid rgba(255, 179, 198, 0.2);
+		}
+
+		.save-btn {
+			background: rgba(255, 179, 198, 0.15);
+			color: var(--primary);
+			padding: 0.8rem 2.5rem;
+			border-radius: 2rem;
+			border: 1px solid var(--secondary);
+			backdrop-filter: blur(5px);
+			cursor: pointer;
+			transition: all 0.2s ease;
+		}
+
+		.save-btn:hover {
+			background: var(--primary);
+			color: white;
+		}
+
+		.error-message {
+			color: var(--error);
+			margin: 1rem 0;
+			text-align: center;
+			animation: fadeIn 0.3s ease;
+		}
+
+		@@keyframes fadeIn {
+			from {
+				opacity: 0;
+			}
+
+			to {
+				opacity: 1;
+			}
+		}
+
+		@@media (max-width: 768px) {
+			.container {
+				padding: 1rem;
+			}
+
+			.container::before {
+				top: 1rem;
+				left: 1rem;
+				width: calc(100% - 2rem);
+				height: calc(100% - 2rem);
+				transform: none;
+			}
+
+			.back-btn {
+				left: 1.5rem;
+				top: 1.5rem;
+				padding: 0.6rem 1rem;
+			}
+
+			.form-actions {
+				justify-content: center;
+				margin-top: 2rem;
+			}
+
+			.save-btn {
+				width: 100%;
+				padding: 0.8rem;
+			}
+		}
+	</style>
+</head>
+
+<body>
+	<div class="container">
+		<button class="back-btn" @onclick="() => NavigateBack()">
+			<i class="fas fa-arrow-left"></i>
+			Back
+		</button>
+
+		<div class="vendor-form">
+			<div class="form-group">
+				<label for="vendorName">Vendor Name</label>
+				<input type="text" id="vendorName" placeholder="Enter vendor name" required
+					@bind-value="VendorItem.VendorName">
+			</div>
+
+			<div class="form-group">
+				<label for="vendorUrl">Website URL</label>
+				<input type="url" id="vendorUrl" placeholder="https://example.com" required
+					@bind-value="VendorItem.Website">
+			</div>
+
+			<div class="form-actions">
+				<button class="save-btn" id="saveVendor">
+					@if (Action == PageContextAction.Update)
+					{
+						<text>Update Vendor</text>
+					}
+					else if (Action == PageContextAction.Add)
+					{
+						<text>Add Vendor</text>
+					}
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		$(document).ready(function () {
+			$('#saveVendor').click(function () {
+				const $btn = $(this);
+				$btn.html('<i class="fas fa-spinner fa-spin"></i> Saving...');
+				$btn.prop('disabled', true);
+
+				const vendorData = {
+					name: $('#vendorName').val(),
+					website: $('#vendorUrl').val()
+				};
+
+				let url = "/api/vendors/add";
+				let errorMessage = "Failed to save vendor. Please try again."
+
+				if ('@Enum.GetName(this.Action)' === 'Update') {
+					url = "/api/vendors/update";
+					errorMessage = "Failed to update vendor. Please try again.";
+				} else if ('@Enum.GetName(this.Action)' === 'Delete') {
+					url = "/api/vendors/delete";
+					errorMessage = "Failed to delete vendor. Please try again";
+					delete vendorData.website;
+				}
+
+				$.ajax({
+					type: 'POST',
+					url: '/api/vendors/url',
+					contentType: 'application/json',
+					data: JSON.stringify(vendorData),
+					success: function () {
+						if (window.categoryInstance) {
+							window.categoryInstance.invokeMethodAsync('NavigateBack');
+						} else {
+							console.error("Component instance not registered.");
+						}
+					},
+					error: function () {
+						$('.error-message').remove();
+						$('.vendor-form').append(
+							$('<div class="error-message">' + errorMessage + '</div>')
+						);
+					},
+					complete: function () {
+						$btn.html('Save Vendor');
+						$btn.prop('disabled', false);
+					}
+				});
+			});
+		});
+
+		function registerCategoryInstance(dotNetHelper) {
+			window.categoryInstance = dotNetHelper;
+		}
+	</script>
+</body>
+
+</html>
+
+@code {
+	private DotNetObjectReference<Vendor>? _componentRef;
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			_componentRef = DotNetObjectReference.Create(this);
+			await JSRuntime.InvokeVoidAsync("registerCategoryInstance", _componentRef);
+		}
+	}
+
+	public void Dispose()
+	{
+		_componentRef?.Dispose();
+	}
+}

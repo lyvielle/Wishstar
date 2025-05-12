@@ -1,0 +1,302 @@
+﻿@page "/wishlist"
+@using System.Collections.ObjectModel
+@using System.ComponentModel
+@using Wishstar.Components.Pages.Context
+@using Wishstar.Extensions
+@using Wishstar.Models
+@inject NavigationManager NavigationManager
+@inject IHttpContextAccessor HttpContextAccessor
+@inject HttpClient HttpClient
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>💫 Wishstar</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+	<style>
+		:root {
+			--primary: #FFB3C6;
+			--secondary: #FFE5EC;
+			--mica: rgba(255, 245, 247, 0.92);
+			--text: #4A4A4A;
+		}
+
+		body {
+			font-family: 'Segoe UI', system-ui, sans-serif;
+			color: var(--text);
+			margin: 0;
+			min-height: 100vh;
+			background: linear-gradient(135deg, #FFF0F3, #FFFAFB);
+			animation: gradientFlow 15s ease infinite;
+			background-size: 200% 200%;
+		}
+
+		@@keyframes gradientFlow {
+			0% {
+				background-position: 0% 50%;
+			}
+
+			50% {
+				background-position: 100% 50%;
+			}
+
+			100% {
+				background-position: 0% 50%;
+			}
+		}
+
+		.container {
+			max-width: 1280px;
+			margin: 0 auto;
+			padding: 2rem;
+			position: relative;
+		}
+
+		.container::before {
+			content: '';
+			position: fixed;
+			top: 2rem;
+			left: 50%;
+			transform: translateX(-50%);
+			width: calc(100% - 4rem);
+			height: calc(100% - 4rem);
+			background: var(--mica);
+			backdrop-filter: blur(20px);
+			border-radius: 2rem;
+			border: 1px solid rgba(255, 179, 198, 0.3);
+			z-index: -1;
+			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+		}
+
+		header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 1rem 2rem;
+			margin-bottom: 2rem;
+		}
+
+		.logo {
+			font-size: 1.8rem;
+			font-weight: 500;
+			color: var(--primary);
+		}
+
+		.controls {
+			display: grid;
+			grid-template-columns: 1fr auto auto auto;
+			gap: 1.5rem;
+			margin-bottom: 2rem;
+		}
+
+		.search-bar,
+		select {
+			padding: 0.8rem 1.5rem;
+			border: 1px solid var(--secondary);
+			border-radius: 2rem;
+			background: rgba(255, 255, 255, 0.7);
+			backdrop-filter: blur(5px);
+			font-size: 1rem;
+			transition: all 0.2s ease;
+		}
+
+		.wishlist-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+			gap: 2rem;
+		}
+
+		.wish-item {
+			position: relative;
+			background: rgba(255, 255, 255, 0.8);
+			backdrop-filter: blur(10px);
+			border-radius: 1.5rem;
+			padding: 1.5rem;
+			border: 1px solid rgba(255, 179, 198, 0.2);
+			transition: transform 0.2s ease;
+			min-height: 380px;
+			display: flex;
+			flex-direction: column;
+			text-decoration: none;
+			color: inherit;
+		}
+
+		.wish-item:hover {
+			transform: translateY(-5px);
+			box-shadow: 0 8px 25px rgba(255, 179, 198, 0.1);
+		}
+
+		.product-image {
+			width: 100%;
+			height: 200px;
+			object-fit: cover;
+			border-radius: 1rem;
+			margin-bottom: 1rem;
+		}
+
+		.vendor {
+			font-size: 0.9rem;
+			color: var(--primary);
+			margin-bottom: 0.5rem;
+		}
+
+		.price {
+			font-size: 1.25rem;
+			color: var(--primary);
+			font-weight: 600;
+			margin-top: auto;
+			padding-top: 1rem;
+			border-top: 1px solid rgba(255, 179, 198, 0.2);
+		}
+
+		.login-btn {
+			background: rgba(255, 179, 198, 0.15);
+			color: var(--primary);
+			padding: 0.8rem 2rem;
+			border-radius: 2rem;
+			border: 1px solid var(--secondary);
+			backdrop-filter: blur(5px);
+			transition: all 0.2s ease;
+		}
+
+		.login-btn:hover {
+			background: var(--primary);
+			color: white;
+		}
+
+		/* Logged-in state controls */
+		.logged-in .item-actions {
+			display: flex;
+		}
+
+		.item-actions {
+			position: absolute;
+			top: 1rem;
+			right: 1rem;
+			gap: 0.5rem;
+		}
+
+		.action-btn {
+			width: 32px;
+			height: 32px;
+			border: none;
+			border-radius: 50%;
+			backdrop-filter: blur(5px);
+			background: rgba(255, 255, 255, 0.9);
+			cursor: pointer;
+			transition: all 0.2s ease;
+		}
+
+		.action-btn:hover {
+			background: var(--primary);
+			color: white;
+		}
+
+		.add-item {
+			position: fixed;
+			bottom: 2rem;
+			right: 2rem;
+			width: 56px;
+			height: 56px;
+			border-radius: 50%;
+			background: var(--primary);
+			color: white;
+			border: none;
+			font-size: 1.5rem;
+			cursor: pointer;
+			box-shadow: 0 4px 12px rgba(255, 179, 198, 0.3);
+		}
+
+		@@media (max-width: 768px) {
+			.controls {
+				grid-template-columns: 1fr;
+			}
+
+			.container::before {
+				top: 1rem;
+				left: 1rem;
+				width: calc(100% - 2rem);
+				height: calc(100% - 2rem);
+				transform: none;
+			}
+		}
+	</style>
+</head>
+
+<body>
+	<div class="container">
+		<header>
+			<div class="logo">💫 Wishstar</div>
+			<div>
+				<select class="currency-selector" @onchange="OnCurrencyChange">
+					@foreach (var currency in CurrencyDescriptor.GetAllCurrencies())
+					{
+						<option>@currency.Code</option>
+					}
+					)
+				</select>
+				@if (!IsLoggedIn)
+				{
+					<button class="login-btn" @onclick="() => ReferToLogin()">Login</button>
+				}
+			</div>
+		</header>
+
+		<div class="controls">
+			<input type="text" class="search-bar" placeholder="Search items..." @onchange="OnSearchTextChange">
+			<select class="user-filter" @onchange="OnUserFilterChange">
+				<option>All Users</option>
+				@foreach (var user in Database.GetUsers())
+				{
+					<option>@user.Username</option>
+				}
+				)
+			</select>
+			<select class="vendor-filter" @onchange="OnVendorFilterChange">
+				<option>All Vendors</option>
+				@foreach (var vendor in Database.GetVendors())
+				{
+					<option>@vendor.VendorName</option>
+				}
+			</select>
+			<select class="category-filter" @onchange="OnCategoryFilterChange">
+				<option>All Categories</option>
+				@foreach (var category in Database.GetCategories())
+				{
+					<option>@category.CategoryName</option>
+				}
+				)
+			</select>
+		</div>
+
+		<div class="wishlist-grid">
+			@foreach (var wishItem in Database.GetWishes())
+			{
+				<a href="#" class="wish-item">
+					@if (IsLoggedIn)
+					{
+						<div class="item-actions">
+							<button class="action-btn" @onclick="() => EditWishItem(wishItem)"><i
+									class="fas fa-pencil"></i></button>
+							<button class="action-btn" @onclick="() => DeleteWishItem(wishItem)"><i
+									class="fas fa-trash"></i></button>
+						</div>
+					}
+					<img src="@ImageResolver.GetImageUrl(wishItem.ImageName)" class="product-image"
+						alt="@wishItem.ItemDescription">
+					<div class="vendor">@wishItem.VendorName</div>
+					<h3>@wishItem.ItemName</h3>
+					<p>@wishItem.ItemDescription</p>
+					<div class="price">@wishItem.ItemPrice.ToString(DisplayCurrencyType)</div>
+				</a>
+			}
+		</div>
+
+		<button class="add-item" @onclick="() => AddWishItem()">+</button>
+	</div>
+</body>
+
+</html>

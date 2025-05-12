@@ -1,0 +1,19 @@
+# Exclude build directories
+bin/
+obj/
+
+# Exclude Visual Studio files
+.vs/
+
+# Exclude user-specific files
+*.user
+*.suo
+
+# Exclude temporary files
+*.tmp
+*.log
+*.lock
+*.cache
+
+# Exclude package directories
+packages/

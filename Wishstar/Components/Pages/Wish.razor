@@ -1,0 +1,360 @@
+﻿@page "/wish"
+@using Wishstar.Components.Pages.Context
+@using Wishstar.Extensions
+@using Wishstar.Models
+@inject NavigationManager NavigationManager
+@inject IHttpContextAccessor HttpContextAccessor
+@inject HttpClient HttpClient
+@inject IJSRuntime JSRuntime
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Create Wish - Wishstar</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<style>
+		:root {
+			--primary: #FFB3C6;
+			--secondary: #FFE5EC;
+			--mica: rgba(255, 245, 247, 0.92);
+			--text: #4A4A4A;
+			--error: #FF6B6B;
+		}
+
+		body {
+			font-family: 'Segoe UI', system-ui, sans-serif;
+			color: var(--text);
+			margin: 0;
+			min-height: 100vh;
+			background: linear-gradient(135deg, #FFF0F3, #FFFAFB);
+			animation: gradientFlow 15s ease infinite;
+			background-size: 200% 200%;
+		}
+
+		@@keyframes gradientFlow {
+			0% {
+				background-position: 0% 50%;
+			}
+
+			50% {
+				background-position: 100% 50%;
+			}
+
+			100% {
+				background-position: 0% 50%;
+			}
+		}
+
+		.container {
+			max-width: 800px;
+			margin: 0 auto;
+			padding: 2rem;
+			position: relative;
+		}
+
+		.container::before {
+			content: '';
+			position: fixed;
+			top: 2rem;
+			left: 50%;
+			transform: translateX(-50%);
+			width: calc(100% - 4rem);
+			height: calc(100% - 4rem);
+			background: var(--mica);
+			backdrop-filter: blur(20px);
+			border-radius: 2rem;
+			border: 1px solid rgba(255, 179, 198, 0.3);
+			z-index: -1;
+			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+		}
+
+		.back-btn {
+			background: rgba(255, 179, 198, 0.15);
+			color: var(--primary);
+			padding: 0.8rem 1.5rem;
+			border-radius: 2rem;
+			border: 1px solid var(--secondary);
+			backdrop-filter: blur(5px);
+			cursor: pointer;
+			transition: all 0.2s ease;
+			position: absolute;
+			left: 3rem;
+			top: 3rem;
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			z-index: 2;
+		}
+
+		.wish-form {
+			background: rgba(255, 255, 255, 0.8);
+			backdrop-filter: blur(10px);
+			border-radius: 1.5rem;
+			padding: 2rem;
+			border: 1px solid rgba(255, 179, 198, 0.2);
+			margin-top: 4rem;
+		}
+
+		.form-group {
+			margin-bottom: 1.5rem;
+			width: 90%;
+		}
+
+		label {
+			display: block;
+			margin-bottom: 0.5rem;
+			font-weight: 500;
+		}
+
+		input,
+		select,
+		textarea {
+			width: 90%;
+			padding: 0.8rem 1.5rem;
+			border: 1px solid var(--secondary);
+			border-radius: 1rem;
+			background: rgba(255, 255, 255, 0.7);
+			backdrop-filter: blur(5px);
+			font-size: 1rem;
+			transition: all 0.2s ease;
+		}
+
+		select {
+			width: 98.5%;
+		}
+
+		input:focus,
+		select:focus,
+		textarea:focus {
+			outline: none;
+			box-shadow: 0 0 0 2px var(--primary);
+		}
+
+		.form-actions {
+			display: flex;
+			justify-content: flex-end;
+			gap: 1rem;
+			margin-top: 3rem;
+			padding-top: 2rem;
+			border-top: 1px solid rgba(255, 179, 198, 0.2);
+		}
+
+		.save-btn {
+			background: rgba(255, 179, 198, 0.15);
+			color: var(--primary);
+			padding: 0.8rem 2.5rem;
+			border-radius: 2rem;
+			border: 1px solid var(--secondary);
+			backdrop-filter: blur(5px);
+			cursor: pointer;
+			transition: all 0.2s ease;
+		}
+
+		.image-upload {
+			text-align: center;
+			margin-bottom: 2rem;
+		}
+
+		.upload-preview {
+			width: 200px;
+			height: 200px;
+			border-radius: 1rem;
+			border: 2px dashed var(--primary);
+			background: rgba(255, 255, 255, 0.7);
+			cursor: pointer;
+			margin: 0 auto;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			flex-direction: column;
+			color: var(--primary);
+		}
+
+		.upload-preview img {
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			border-radius: 1rem;
+		}
+
+		.price-group {
+			display: grid;
+			grid-template-columns: 1fr 120px;
+			gap: 1rem;
+			align-items: center;
+		}
+
+		.combo-add {
+			color: var(--primary);
+			font-weight: 500;
+			padding: 0.5rem 1rem;
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+		}
+
+		.combo-add i {
+			font-size: 0.9rem;
+		}
+
+		.required {
+			color: var(--error);
+			margin-left: 0.25rem;
+		}
+
+		@@media (max-width: 768px) {
+			.container {
+				padding: 1rem;
+			}
+
+			.price-group {
+				grid-template-columns: 1fr;
+			}
+
+			.back-btn {
+				left: 1.5rem;
+				top: 1.5rem;
+				padding: 0.6rem 1rem;
+			}
+		}
+	</style>
+</head>
+
+<body>
+	<div class="container">
+		<button class="back-btn" onclick="window.history.back()">
+			<i class="fas fa-arrow-left"></i>
+			Back
+		</button>
+
+		<div class="wish-form">
+			<!-- Image Upload -->
+			<div class="image-upload">
+				<div class="upload-preview" id="imagePreview">
+					@if (!HasCustomImage)
+					{
+						<i class="fas fa-camera fa-2x"></i>
+					}
+					else
+					{
+						<img src="@ImageUrl" alt="Product image" id="wishImagePreview">
+					}
+					<div>Click to upload image</div>
+				</div>
+				<InputFile type="file" id="imageUpload" accept="image/*" hidden OnChange="OnImageSelected"></InputFile>
+			</div>
+
+			<!-- Wish Details -->
+			<div class="form-group">
+				<label>Wish Name <span class="required">*</span></label>
+				<input type="text" id="wishName" placeholder="Enter wish name" required @bind-value="WishItem.ItemName">
+			</div>
+
+			<div class="form-group">
+				<label>Description</label>
+				<textarea id="wishDescription" rows="3" placeholder="Add a description"
+					@onchange="OnWishDescriptionChanged"></textarea>
+			</div>
+
+			<!-- Vendor Selection -->
+			<div class="form-group">
+				<label>Vendor <span class="required">*</span></label>
+				<select id="vendorSelect" required @onchange="OnVendorSelected">
+					<option value="">Select vendor</option>
+					@foreach (var vendor in Database.GetVendors())
+					{
+						<option value="@vendor.VendorName">@vendor.VendorName</option>
+					}
+					<option value="new" class="combo-add">
+						<i class="fas fa-plus"></i>Add New Vendor
+					</option>
+				</select>
+			</div>
+
+			<!-- Product Link -->
+			<div class="form-group">
+				<label>Product Link <span class="required">*</span></label>
+				<input type="url" id="productLink" placeholder="https://example.com/product" required
+					@bind-value="WishItem.ProductLink">
+			</div>
+
+			<!-- Price & Currency -->
+			<div class="form-group">
+				<label>Price <span class="required">*</span></label>
+				<div class="price-group">
+					<input type="number" id="productPrice" placeholder="0.00" step="0.01" required
+						@bind-value="PriceAmount">
+					<select id="currencySelect" @onchange="OnCurrencySelected">
+						@foreach (var currency in CurrencyDescriptor.GetAllCurrencies())
+						{
+							<option value="@currency.Code">@currency.Code</option>
+						}
+					</select>
+				</div>
+			</div>
+
+			<!-- Category Selection -->
+			<div class="form-group">
+				<label>Category <span class="required">*</span></label>
+				<select id="categorySelect" required @onchange="OnCategorySelected">
+					@foreach (var category in Database.GetCategories())
+					{
+						<option value="@category.CategoryName">@category.CategoryName</option>
+					}
+					<option value="new" class="combo-add">
+						<i class="fas fa-plus"></i>Add New Category
+					</option>
+				</select>
+			</div>
+
+			<div class="form-actions">
+				<button class="save-btn" id="saveWish" @onclick="SaveOrUpdate">
+					Save Wish
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		$(document).ready(function () {
+			// Image Upload
+			$('#imagePreview').click(() => $('#imageUpload').click());
+
+			// Form Submission
+			$('#saveWish').click(function () {
+				const $btn = $(this);
+				$btn.html('<i class="fas fa-spinner fa-spin"></i> Saving...');
+				$btn.prop('disabled', true);
+
+				// Form Validation
+				if (!$('#wishName').val() || !$('#productLink').val() || !$('#productPrice').val()) {
+					showError('Please fill all required fields');
+					$btn.html('Save Wish');
+					$btn.prop('disabled', false);
+					return;
+				}
+			});
+
+			function showError(message) {
+				$('.error-message').remove();
+				$('.wish-form').prepend(
+					$(`<div class="error-message">${message}</div>`));
+			}
+
+			function setLoadingState(isLoading) {
+				if (isLoading) {
+					$btn.html('<i class="fas fa-spinner fa-spin"></i> Saving...');
+					$btn.prop('disabled', true);
+				} else {
+					$btn.html('Save Wish');
+					$btn.prop('disabled', false);
+				}
+			}
+	</script>
+</body>
+
+</html>

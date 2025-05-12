@@ -1,0 +1,269 @@
+@page "/category"
+@inject NavigationManager NavigationManager
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IJSRuntime JSRuntime
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Category - Wishstar</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        :root {
+            --primary: #FFB3C6;
+            --secondary: #FFE5EC;
+            --mica: rgba(255, 245, 247, 0.92);
+            --text: #4A4A4A;
+            --error: #FF6B6B;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: var(--text);
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #FFF0F3, #FFFAFB);
+            animation: gradientFlow 15s ease infinite;
+            background-size: 200% 200%;
+        }
+
+        @@keyframes gradientFlow {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+        }
+
+        .container::before {
+            content: '';
+            position: fixed;
+            top: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 4rem);
+            height: calc(100% - 4rem);
+            background: var(--mica);
+            backdrop-filter: blur(20px);
+            border-radius: 2rem;
+            border: 1px solid rgba(255, 179, 198, 0.3);
+            z-index: -1;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+        }
+
+        .back-btn {
+            background: rgba(255, 179, 198, 0.15);
+            color: var(--primary);
+            padding: 0.8rem 1.5rem;
+            border-radius: 2rem;
+            border: 1px solid var(--secondary);
+            backdrop-filter: blur(5px);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: absolute;
+            left: 3rem;
+            top: 3rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            z-index: 2;
+        }
+
+        .category-form {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            border: 1px solid rgba(255, 179, 198, 0.2);
+            margin-top: 4rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.8rem 1.5rem;
+            border: 1px solid var(--secondary);
+            border-radius: 1rem;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(5px);
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px var(--primary);
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255, 179, 198, 0.2);
+        }
+
+        .save-btn {
+            background: rgba(255, 179, 198, 0.15);
+            color: var(--primary);
+            padding: 0.8rem 2.5rem;
+            border-radius: 2rem;
+            border: 1px solid var(--secondary);
+            backdrop-filter: blur(5px);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .required {
+            color: var(--error);
+            margin-left: 0.25rem;
+        }
+
+        @@media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .back-btn {
+                left: 1.5rem;
+                top: 1.5rem;
+                padding: 0.6rem 1rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <button class="back-btn" onclick="window.history.back()">
+            <i class="fas fa-arrow-left"></i>
+            Back
+        </button>
+
+        <div class="category-form">
+            <div class="form-group">
+                <label>Category Name <span class="required">*</span></label>
+                <input type="text" id="categoryName" placeholder="Enter category name" required
+                    @bind-value="CategoryItem.CategoryName">
+            </div>
+
+            <div class="form-group">
+                <label>Description</label>
+                <input type="text" id="categoryDescription" placeholder="Add a description (optional)"
+                    @bind-value="CategoryItem.CategoryDescription">
+            </div>
+
+            <div class="form-actions">
+                <button class="save-btn" id="saveCategory">
+                    Save Category
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            $('#saveCategory').click(function () {
+                const $btn = $(this);
+                $btn.html('<i class="fas fa-spinner fa-spin"></i> Saving...');
+                $btn.prop('disabled', true);
+
+                if (!$('#categoryName').val()) {
+                    showError('Category name is required');
+                    $btn.html('Save Category');
+                    $btn.prop('disabled', false);
+                    return;
+                }
+
+                const categoryData = {
+                    name: $('#categoryName').val(),
+                    description: $('#categoryDescription').val()
+                };
+
+                let url = '/api/categories/add';
+                if ('@Enum.GetName(Action)' === 'Update') {
+                    url = '/api/categories/update';
+                }
+
+                $.ajax({
+                    type: 'POST',
+                    url: url,
+                    contentType: 'application/json',
+                    data: JSON.stringify(categoryData),
+                    success: () => {
+                        if (window.categoryInstance) {
+                            window.categoryInstance.invokeMethodAsync('NavigateBack');
+                        } else {
+                            console.error("Component instance not registered.");
+                        }
+                    },
+                    error: () => {
+                        showError('Failed to save category');
+                    },
+                    complete: () => {
+                        $btn.html('Save Category');
+                        $btn.prop('disabled', false);
+                    }
+                });
+            });
+
+            function registerCategoryInstance(dotNetHelper) {
+                window.categoryInstance = dotNetHelper;
+            }
+
+            function showError(message) {
+                $('.error-message').remove();
+                $('.category-form').prepend(
+                    $(`<div class="error-message">${message}</div>`)
+                );
+            }
+        });
+    </script>
+</body>
+
+</html>
+
+@code {
+    private DotNetObjectReference<Category>? _componentRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _componentRef = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("registerCategoryInstance", _componentRef);
+        }
+    }
+
+    public void Dispose()
+    {
+        _componentRef?.Dispose();
+    }
+}
