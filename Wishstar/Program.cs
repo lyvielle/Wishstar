@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.HttpOverrides;
 using Wishstar;
 using Wishstar.Components;
 
@@ -26,7 +27,6 @@ WishDatabase.Load().Initialize(); // Initialize the database
 if (!app.Environment.IsDevelopment()) {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
     app.UseHsts();
-    app.UseHttpsRedirection();
 
     AppConfig.UseHttps = true;
 } else {
@@ -39,6 +39,11 @@ if (!app.Environment.IsDevelopment()) {
 
     AppConfig.CurrentDomain = localUrl;
 }
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions {
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 
 app.UseStaticFiles();
 app.UseAntiforgery();

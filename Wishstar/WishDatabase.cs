@@ -16,25 +16,6 @@ namespace Wishstar {
             _UserConfig = UserConfig.Load();
             _WishItemConfig = WishItemConfig.Load();
             _VendorConfig = VendorConfig.Load();
-
-            if (_CategoryConfig.Categories.Count == 0) {
-                _CategoryConfig.Categories.Add(WishCategory.GetUncategorized());
-            }
-
-            if (_VendorConfig.Vendors.Count == 0) {
-                _VendorConfig.Vendors.Add(Vendor.GetUnspecified());
-            }
-
-
-            if (_UserConfig.Users.Count == 0) {
-                _UserConfig.Users.Add(new User(IdGenerator.GetNumericalId(), "Default", "default@default.com", "replace-me", CurrencyType.EUR));
-            }
-
-            // Ensure configs exist
-            _CategoryConfig.Save();
-            _UserConfig.Save();
-            _WishItemConfig.Save();
-            _VendorConfig.Save();
         }
 
         private static bool _Initialized = false;
@@ -44,12 +25,14 @@ namespace Wishstar {
                 if (!_Initialized) {
                     if (_CategoryConfig.Categories.Count == 0) {
                         _CategoryConfig.Categories.Add(WishCategory.GetUncategorized());
+                        _CategoryConfig.Save();
                     } else {
                         _CategoryConfig.TryCleanConfig();
                     }
 
                     if (_VendorConfig.Vendors.Count == 0) {
                         _VendorConfig.Vendors.Add(Vendor.GetUnspecified());
+                        _VendorConfig.Save();
                     } else {
                         _VendorConfig.TryCleanConfig();
                     }
@@ -57,16 +40,19 @@ namespace Wishstar {
 
                     if (_UserConfig.Users.Count == 0) {
                         _UserConfig.Users.Add(new User(IdGenerator.GetNumericalId(), "Default", "default@default.com", "replace-me", CurrencyType.EUR));
+                        _UserConfig.Save();
                     } else {
                         _UserConfig.TryCleanConfig();
                     }
 
-                    var referencedImages = _WishItemConfig.Wishes.Select(w => w.ImageName).Distinct().Select(i => ImageResolver.GetImagePath(i));
-                    var existingImages = Directory.GetFiles(ImageResolver.ImageDirectory).Select(Path.GetFileName);
-                    foreach (var image in existingImages) {
-                        if (!referencedImages.Contains(image)) {
-                            if (File.Exists(image)) {
-                                File.Delete(image);
+                    if (Directory.Exists(ImageResolver.ImageDirectory)) {
+                        var referencedImages = _WishItemConfig.Wishes.Select(w => w.ImageName).Distinct().Select(i => ImageResolver.GetImagePath(i));
+                        var existingImages = Directory.GetFiles(ImageResolver.ImageDirectory).Select(Path.GetFileName);
+                        foreach (var image in existingImages) {
+                            if (!referencedImages.Contains(image)) {
+                                if (File.Exists(image)) {
+                                    File.Delete(image);
+                                }
                             }
                         }
                     }

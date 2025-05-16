@@ -1,6 +1,6 @@
 ﻿namespace Wishstar.Components.Pages.Context {
     public class ParentPageContext : IPageContext {
-        public string Page { get; set; } = $"{AppConfig.FullCurrentDomain}/";
+        public string Page { get; set; } = "/";
 
         public static ParentPageContext Create(string url) {
             return new ParentPageContext() {

@@ -1,6 +1,6 @@
 ﻿namespace Wishstar.Components.Pages.Context {
     public class VendorPageContext : IPageContext {
-        public string Page { get; set; } = $"{AppConfig.FullCurrentDomain}/vendor";
+        public string Page { get; set; } = "/vendor";
 
         [PageContextItem]
         public int Id { get; set; } = 0;

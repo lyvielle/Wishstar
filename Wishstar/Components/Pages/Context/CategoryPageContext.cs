@@ -2,7 +2,7 @@
 
 namespace Wishstar.Components.Pages.Context {
     public class CategoryPageContext : IPageContext {
-        public string Page { get; set; } = $"{AppConfig.FullCurrentDomain}/category";
+        public string Page { get; set; } = "/category";
 
         [PageContextItem]
         public int CategoryId { get; set; } = 0;

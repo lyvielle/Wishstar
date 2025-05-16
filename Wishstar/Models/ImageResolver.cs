@@ -19,10 +19,6 @@
             return imagePath;
         }
 
-        public static string GetImageUrl(string imageName) {
-            return $"{AppConfig.FullCurrentDomain}/icon?file={Uri.EscapeDataString(imageName)}";
-        }
-
         public static string GetRelativeImageUrl(string imageName) {
             return $"/icon?file={Uri.EscapeDataString(imageName)}";
         }
