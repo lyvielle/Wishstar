@@ -1,13 +1,13 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Diagnostics;
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 using Wishstar.Components.Pages.Context;
 using Wishstar.Extensions;
 using Wishstar.Models;
 
 namespace Wishstar.Components.Pages {
-    public partial class Home {
+    public partial class Home : IDisposable {
         public WishDatabase Database { get; } = WishDatabase.Load();
         public CurrencyType DisplayCurrencyType { get; set; } = CurrencyType.EUR;
         public bool IsLoggedIn { get; set; } = false;
@@ -16,6 +16,26 @@ namespace Wishstar.Components.Pages {
         public WishFilterPreferences FilterPreferences { get; set; } = new();
 
         public User? User { get; set; } = null;
+
+        protected string _SelectedVendor = "All Vendors";
+        public string SelectedVendor {
+            get { return _SelectedVendor; }
+            set {
+                _SelectedVendor = value;
+                OnVendorFilterChange(value);
+            }
+        }
+
+        protected string _SelectedCategory = "All Categories";
+        public string SelectedCategory {
+            get { return _SelectedCategory; }
+            set {
+                _SelectedCategory = value;
+                OnCategoryFilterChange(value);
+            }
+        }
+
+        protected DotNetObjectReference<Home> ObjectReference { get; set; } = null!;
 
         protected override void OnInitialized() {
             base.OnInitialized();
@@ -30,6 +50,12 @@ namespace Wishstar.Components.Pages {
             FilterPreferences.PropertyChanged += OnFilterPreferencesChanged;
 
             StateHasChanged();
+        }
+
+        protected override async Task OnAfterRenderAsync(bool firstRender) {
+            if (firstRender) {
+                await JSRuntime.InvokeVoidAsync("registerHomeComponent", ObjectReference = DotNetObjectReference.Create(this));
+            }
         }
 
         #region Events
@@ -56,19 +82,21 @@ namespace Wishstar.Components.Pages {
             }
         }
 
-        private void OnVendorFilterChange(ChangeEventArgs e) {
-            string vendorName = e.Value?.ToString() ?? string.Empty;
+        private void OnVendorFilterChange(string vendorName) {
             if (string.IsNullOrWhiteSpace(vendorName) || vendorName == "All Vendors") {
                 FilterPreferences.VendorFilter = null;
+            } else if (vendorName == "+ Add Vendor") {
+                AddVendor();
             } else {
                 FilterPreferences.VendorFilter = Database.GetVendorByName(vendorName);
             }
         }
 
-        private void OnCategoryFilterChange(ChangeEventArgs e) {
-            string categoryName = e.Value?.ToString() ?? string.Empty;
+        private void OnCategoryFilterChange(string categoryName) {
             if (string.IsNullOrWhiteSpace(categoryName) || categoryName == "All Categories") {
                 FilterPreferences.CategoryFilter = null;
+            } else if (categoryName == "+ Add Category") {
+                AddCategory();
             } else {
                 FilterPreferences.CategoryFilter = Database.GetCategoryByName(categoryName);
             }
@@ -91,7 +119,7 @@ namespace Wishstar.Components.Pages {
             }
 
             if (FilterPreferences.CategoryFilter != null) {
-                items = [.. items.Where(w => w.ItemCategory.CategoryName == FilterPreferences.CategoryFilter.CategoryName)];
+                items = [.. items.Where(w => w.CategoryId == FilterPreferences.CategoryFilter.CategoryId)];
             }
 
             WishItems = [.. items];
@@ -127,22 +155,43 @@ namespace Wishstar.Components.Pages {
         public void DeleteWishItem(WishItem wishItem) {
             Database.DeleteWish(wishItem);
             WishItems.Remove(wishItem);
+
+            if (File.Exists(ImageResolver.GetImagePath(wishItem.ImageName))) {
+                File.Delete(ImageResolver.GetImagePath(wishItem.ImageName));
+            }
+
             StateHasChanged();
         }
 
-        public void AddVendor(Models.Vendor vendor) {
+        public void AddVendor() {
             NavigationManager.NavigateToWithContext("/vendor", PageContextAction.Add, VendorPageContext.CreateDefaultWith(GetPageContext()));
         }
 
-        public void EditVendor(Models.Vendor vendor) {
+        public void EditVendor() {
+            Models.Vendor? vendor = Database.GetVendorByName(SelectedVendor);
+            if (vendor == null) {
+                return;
+            }
+
             NavigationManager.NavigateToWithContext("/vendor", PageContextAction.Update,
                 context: VendorPageContext.FromVendor(vendor, GetPageContext()),
                 queryParameters: new() {
-                { "id", vendor.VendorName } });
+                { "id", vendor.VendorId.ToString() } });
         }
 
         public void AddCategory() {
             NavigationManager.NavigateToWithContext("/category", PageContextAction.Add, CategoryPageContext.CreateDefaultWith(GetPageContext()));
+        }
+
+        public void EditCategory() {
+            WishCategory? category = Database.GetCategoryByName(SelectedCategory);
+            if (category == null) {
+                return;
+            }
+
+            NavigationManager.NavigateToWithContext("/category", PageContextAction.Update, CategoryPageContext.FromCategory(category, GetPageContext()),
+                queryParameters: new() {
+                { "id", category.CategoryId.ToString() } });
         }
 
         public async Task DeleteCategory(WishCategory category) {
@@ -155,6 +204,12 @@ namespace Wishstar.Components.Pages {
 
         private IPageContext GetPageContext() {
             return ParentPageContext.Create(NavigationManager.Uri);
+        }
+
+        public void Dispose() {
+            FilterPreferences.PropertyChanged -= OnFilterPreferencesChanged;
+            ObjectReference?.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 }

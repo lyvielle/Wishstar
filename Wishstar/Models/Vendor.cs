@@ -5,7 +5,7 @@
         public string VendorName { get; set; } = vendorName;
         public string Website { get; set; } = website;
 
-        public static Vendor CreateUnspecified() {
+        public static Vendor GetUnspecified() {
             return new Vendor(0, "Unspecified", string.Empty);
         }
 

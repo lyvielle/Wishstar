@@ -8,6 +8,7 @@
 @inject NavigationManager NavigationManager
 @inject IHttpContextAccessor HttpContextAccessor
 @inject HttpClient HttpClient
+@inject IJSRuntime JSRuntime
 
 <PageTitle>💫 Wishstar</PageTitle>
 <HeadContent>
@@ -42,48 +43,98 @@
 					<option>@user.Username</option>
 				}
 			</select>
-			<select class="vendor-filter" @onchange="OnVendorFilterChange">
-				<option>All Vendors</option>
-				@foreach (var vendor in Database.GetVendors())
+			<div class="select-container">
+				<select @bind="SelectedVendor">
+					<option>All Vendors</option>
+					@foreach (var vendor in Database.GetVendors())
+					{
+						<option value="@vendor.VendorName">@vendor.VendorName</option>
+					}
+					<option>+ Add Vendor</option>
+				</select>
+				@if (SelectedVendor != "All Vendors" && SelectedVendor != Models.Vendor.GetUnspecified().VendorName)
 				{
-					<option>@vendor.VendorName</option>
+					<button class="edit-btn" @onclick="() => EditVendor()">
+						<i class="fas fa-pen"></i>
+					</button>
 				}
-			</select>
-			<select class="category-filter" @onchange="OnCategoryFilterChange">
-				<option>All Categories</option>
-				@foreach (var category in Database.GetCategories())
+				else
 				{
-					<option>@category.CategoryName</option>
+					<button class="edit-btn" disabled>
+						<i class="fas fa-pen"></i>
+					</button>
 				}
-			</select>
+			</div>
+			<div class="select-container">
+				<select class="category-filter" @bind="SelectedCategory">
+					<option>All Categories</option>
+					@foreach (var category in Database.GetCategories())
+					{
+						<option>@category.CategoryName</option>
+					}
+					<option>+ Add Category</option>
+				</select>
+				@if (SelectedCategory != "All Categories" && SelectedCategory !=
+							WishCategory.GetUncategorized().CategoryName)
+				{
+					<button class="edit-btn" @onclick="() => EditCategory()">
+						<i class="fas fa-pen"></i>
+					</button>
+				}
+				else
+				{
+					<button class="edit-btn" disabled>
+						<i class="fas fa-pen"></i>
+					</button>
+				}
+			</div>
 		</div>
 
 		<div class="wishlist-grid">
-			@foreach (var wishItem in Database.GetWishes())
+			@foreach (var wishItem in WishItems)
 			{
-				<a href="#" class="wish-item">
-					@if (IsLoggedIn)
-					{
-						<div class="item-actions">
-							<button class="action-btn" @onclick="(() => EditWishItem(wishItem))"><i
-									class="fas fa-pencil"></i></button>
-							<button class="action-btn" @onclick="(() => DeleteWishItem(wishItem))"><i
-									class="fas fa-trash"></i></button>
-						</div>
-					}
-					<img src="@ImageResolver.GetImageUrl(wishItem.ImageName)" class="product-image"
-						alt="@wishItem.ItemDescription">
-					<div class="vendor">@(Database.GetVendorById(wishItem.VendorId)?.VendorName ??
-										Models.Vendor.CreateUnspecified().VendorName)</div>
+				@if (!wishItem.PrivateItem || IsLoggedIn)
+				{
+					<a href="#" class="wish-item">
+						@if (IsLoggedIn)
+						{
+							<div class="item-actions">
+								<button class="action-btn" @onclick="(() => EditWishItem(wishItem))"><i
+										class="fas fa-pencil"></i></button>
+								<button class="action-btn" @onclick="(() => DeleteWishItem(wishItem))"><i
+										class="fas fa-trash"></i></button>
+							</div>
+						}
+						<img src="@ImageResolver.GetRelativeImageUrl(wishItem.ImageName)" class="product-image"
+							alt="@wishItem.ItemDescription"
+							@onclick="@(() => NavigationManager.NavigateTo(wishItem.ProductLink, true, true))">
+						<div class="vendor">@(Database.GetVendorById(wishItem.VendorId)?.VendorName ??
+											Models.Vendor.GetUnspecified().VendorName)</div>
 			<h3>@wishItem.ItemName</h3>
 			<p>@wishItem.ItemDescription</p>
 			<div class="price">@wishItem.ItemPrice.ToString(DisplayCurrencyType)</div>
-		</a>
+			<div class="user">@(Database.GetUserById(wishItem.UserId)?.Username ?? "Unknown")</div>
+			@if (wishItem.PrivateItem)
+						{
+							<div class="private-indicator" title="Private item">
+								<i class="fas fa-lock"></i>
+							</div>
+						}
+					</a>
 				}
+			}
 		</div>
 
 		<button class="add-item" @onclick="(() => AddWishItem())">+</button>
 	</div>
+
+	<script>
+		function registerHomeComponent(instance) {
+			if (!window.registeredComponent) {
+				window.registeredComponent = instance;
+			}
+		}
+	</script>
 }
 catch (Exception ex)
 {

@@ -8,7 +8,7 @@
 @inject HttpClient HttpClient
 @inject IJSRuntime JSRuntime
 
-<PageTitle>Create Wish - Wishstar</PageTitle>
+<PageTitle>💫 Create Wish - Wishstar</PageTitle>
 <HeadContent>
 	<link rel="stylesheet" href="styles/wish.styles.css">
 </HeadContent>
@@ -39,20 +39,19 @@
 		<div class="form-group">
 			<label>Description</label>
 			<textarea id="wishDescription" rows="3" placeholder="Add a description"
-				@onchange="OnWishDescriptionChanged"></textarea>
+				@bind="WishItem.ItemDescription"></textarea>
 		</div>
 
 		<!-- Vendor Selection -->
 		<div class="form-group">
 			<label>Vendor <span class="required">*</span></label>
-			<select id="vendorSelect" required @onchange="OnVendorSelected">
-				<option value="">Select vendor</option>
+			<select id="vendorSelect" required @bind="SelectedVendor">
 				@foreach (var vendor in Database.GetVendors())
 				{
 					<option value="@vendor.VendorName">@vendor.VendorName</option>
 				}
 				<option value="new" class="combo-add">
-					<i class="fas fa-plus"></i>Add New Vendor
+					<i class="fas fa-plus"></i>+ Add New Vendor
 				</option>
 			</select>
 		</div>
@@ -81,19 +80,28 @@
 		<!-- Category Selection -->
 		<div class="form-group">
 			<label>Category <span class="required">*</span></label>
-			<select id="categorySelect" required @onchange="OnCategorySelected">
+			<select id="categorySelect" required @bind="SelectedCategory">
 				@foreach (var category in Database.GetCategories())
 				{
 					<option value="@category.CategoryName">@category.CategoryName</option>
 				}
 				<option value="new" class="combo-add">
-					<i class="fas fa-plus"></i>Add New Category
+					<i class="fas fa-plus"></i>+ Add New Category
 				</option>
 			</select>
 		</div>
 
+		<div class="form-group">
+			<label class="checkbox-container">
+				<input type="checkbox" id="privateCheckbox" class="private-checkbox" @bind="WishItem.PrivateItem">
+				<span class="checkmark"></span>
+				Private Item (only visible when logged in)
+			</label>
+		</div>
+
 		<div class="form-actions">
-			<button class="save-btn" id="saveWish" onclick="saveWish()">
+			<button class="save-btn" id="saveWish"
+				@onclick="@(() => JSRuntime.InvokeVoidAsync("saveWish", WishItem, Enum.GetName(Action)))">
 				Save Wish
 			</button>
 
@@ -103,19 +111,20 @@
 
 <script>
 	function showError(message) {
+		console.error(message);
 		$('.error-message').remove();
 		$('.wish-form').prepend(
 			$(`<div class="error-message">${message}</div>`));
 	}
 
 	function setLoadingState(isLoading) {
-		@* if (isLoading) {
-			$btn.html('<i class="fas fa-spinner fa-spin"></i> Saving...');
-			$btn.prop('disabled', true);
+		if (isLoading) {
+			$('saveWish').html('<i class="fas fa-spinner fa-spin"></i> Saving...');
+			$('saveWish').prop('disabled', true);
 		} else {
-			$btn.html('Save Wish');
-			$btn.prop('disabled', false);
-		} *@
+			$('saveWish').html('Save Wish');
+			$('saveWish').prop('disabled', false);
+		}
 	}
 
 	function uploadImage() {
@@ -124,59 +133,71 @@
 			const file = input.files[0];
 			const formData = new FormData();
 			formData.append('file', file);
-			fetch('/api/icon/upload', {
-				method: 'POST',
-				body: formData,
-				credentials: 'include'
-			})
-				.then(response => {
-					if (!response.ok) {
-						throw new Error('Image upload failed');
-					}
-					return response.json();
-				})
-				.then(result => {
-					document.getElementById('wishImageUploadDummy').style.display = 'none';
-					document.getElementById('wishImageUploadText').style.display = 'none';
 
-					document.getElementById('wishImagePreview').hidden = false;
-					document.getElementById('wishImagePreview').src = result.url;
-				})
-				.catch(error => {
-					console.error('Upload error:', error);
+			$.ajax({
+				url: '/api/icon/upload',
+				type: 'POST',
+				data: formData,
+				processData: false,
+				contentType: false,
+				success: function (data) {
+					if (!window.registeredComponent) {
+						showError('Internal error. Uploading images is currently not supported.');
+						return;
+					}
+					window.registeredComponent.invokeMethodAsync("SetImage", data.url);
+					setImage(data.url);
+				},
+				error: function (jqXHR, textStatus, errorThrown) {
+					console.error('Upload error:', textStatus, errorThrown);
 					showError('Image upload failed. Please try again.');
-				});
+				}
+			});
 		}
 	}
 
-	function saveWish() {
-		const wishItem = {
-			itemName: document.getElementById("wishName").value,
-			productLink: document.getElementById("productLink").value,
-			itemCategory: document.getElementById("categorySelect").value,
-			priceAmount: document.getElementById("productPrice").value,
-			vendorId: document.getElementById("vendorSelect").value
-		};
+	function setImage(imageUrl) {
+		document.getElementById('wishImageUploadDummy').style.display = 'none';
+		document.getElementById('wishImageUploadText').style.display = 'none';
+
+		document.getElementById('wishImagePreview').hidden = false;
+		document.getElementById('wishImagePreview').src = imageUrl;
+	}
+
+	function saveWish(wishItem, action) {
+		let apiUrl = '/api/wishes/';
+		if (action === 'Update') {
+			apiUrl += 'update';
+		} else if (action == 'Add') {
+			apiUrl += 'add';
+		} else {
+			showError('Invalid action. Please try again.');
+			return;
+		}
 
 		setLoadingState(true);
-		fetch('/api/wishes/add', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			credentials: 'include',
-			body: JSON.stringify(wishItem)
-		})
-			.then(response => {
-				if (!response.ok) {
-					throw new Error('Failed to save wish');
-				}
+		$.ajax({
+			url: apiUrl,
+			type: 'POST',
+			contentType: 'application/json',
+			data: JSON.stringify({ WishItem: wishItem }),
+			success: function (data) {
 				window.location.href = '/wishlist';
-			})
-			.catch(error => {
-				console.error('Error saving wish:', error);
+			},
+			error: function (jqXHR, textStatus, errorThrown) {
+				console.error('Save error:', textStatus, errorThrown);
 				showError('Failed to save wish. Please try again.');
-			}).finally(() => {
+			},
+			complete: function () {
 				setLoadingState(false);
-			});
+			}
+		});
+	}
+
+	function registerHomeComponent(instance) {
+		if (!window.registeredComponent) {
+			window.registeredComponent = instance;
+		}
 	}
 
 	$(document).ready(function () {

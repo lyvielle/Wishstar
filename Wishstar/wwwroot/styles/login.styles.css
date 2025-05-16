@@ -1,0 +1,136 @@
+:root {
+    --primary: #FFB3C6;
+    --secondary: #FFE5EC;
+    --mica: rgba(255, 245, 247, 0.92);
+    --text: #4A4A4A;
+}
+
+body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    color: var(--text);
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #FFF0F3, #FFFAFB);
+    animation: gradientFlow 15s ease infinite;
+    background-size: 200% 200%;
+}
+
+@keyframes gradientFlow {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.login-container {
+    background: var(--mica);
+    backdrop-filter: blur(20px);
+    border-radius: 2rem;
+    padding: 3rem;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(255, 179, 198, 0.3);
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.logo {
+    font-size: 2rem;
+    color: var(--primary);
+    margin-bottom: 1rem;
+}
+
+.login-form .input-group {
+    margin-bottom: 1.5rem;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.error-message {
+    color: var(--error);
+    margin-bottom: 1rem;
+    text-align: center;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.input-group input {
+    width: 100%;
+    padding: 0.8rem 1.5rem;
+    border: 1px solid var(--secondary);
+    border-radius: 2rem;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(5px);
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.input-group input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--primary);
+}
+
+.login-btn {
+    width: 100%;
+    padding: 1rem;
+    border-radius: 2rem;
+    border: 1px solid var(--secondary);
+    background: rgba(255, 179, 198, 0.15);
+    color: var(--primary);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.login-btn:hover {
+    background: var(--primary);
+    color: white;
+}
+
+.additional-options {
+    margin-top: 1.5rem;
+    text-align: center;
+}
+
+.additional-options a {
+    color: var(--primary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: opacity 0.2s ease;
+}
+
+.additional-options a:hover {
+    opacity: 0.8;
+}
+
+.signup-prompt {
+    margin-top: 2rem;
+    text-align: center;
+}

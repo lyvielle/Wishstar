@@ -20,18 +20,12 @@ namespace Wishstar.Controllers {
                     return BadRequest("No file uploaded.");
                 }
 
-                string fileName = Path.GetFileName(file.FileName);
-                string imgDirectory = Path.GetFullPath(AppConfig.ImageBasePath);
-                Directory.CreateDirectory(imgDirectory);
-                string physicalFilePath = Path.GetFullPath(Path.Combine(imgDirectory, fileName));
-
-                if (!physicalFilePath.StartsWith(imgDirectory)) {
-                    return BadRequest("Invalid path");
-                }
+                string fileName = IdGenerator.GetNumericalId() + Path.GetExtension(file.FileName);
+                string filePath = ImageResolver.GetImagePath(fileName) ?? throw new InvalidOperationException("Unable to resolve image path.");
 
                 _Logger.LogInformation("{userName} uploading icon: {FileName}", user.Username, fileName);
 
-                using var stream = new FileStream(physicalFilePath, FileMode.Create);
+                using var stream = new FileStream(filePath, FileMode.Create);
                 await file.CopyToAsync(stream);
 
                 return Ok(new { url = ImageResolver.GetRelativeImageUrl(fileName) });
@@ -53,19 +47,16 @@ namespace Wishstar.Controllers {
                     return BadRequest("File name is required.");
                 }
 
-                string fullBasePath = Path.GetFullPath(AppConfig.ImageBasePath);
-                string imgDirectory = Path.Combine(fullBasePath, "img");
-                string physicalFilePath = Path.GetFullPath(Path.Combine(imgDirectory, fileName));
-
-                if (!physicalFilePath.StartsWith(imgDirectory)) {
-                    return BadRequest("Invalid path");
+                if (fileName.Contains('/')) {
+                    fileName = fileName.Split('/').Last();
                 }
 
-                if (!System.IO.File.Exists(physicalFilePath)) {
+                string filePath = ImageResolver.GetImagePath(fileName) ?? throw new InvalidOperationException("Unable to resolve image path.");
+                if (!System.IO.File.Exists(filePath)) {
                     return NotFound("File not found.");
                 }
 
-                System.IO.File.Delete(physicalFilePath);
+                System.IO.File.Delete(filePath);
                 _Logger.LogInformation("{userName} deleted icon: {FileName}", user.Username, fileName);
 
                 return Ok(new { message = "Icon deleted successfully." });

@@ -14,7 +14,7 @@ namespace Wishstar.Components.Pages.Context {
         public string ItemDescription { get; set; } = string.Empty;
 
         [PageContextItem]
-        public int VendorId { get; set; } = Models.Vendor.CreateUnspecified().VendorId;
+        public int VendorId { get; set; } = Models.Vendor.GetUnspecified().VendorId;
 
         [PageContextItem]
         public string ProductLink { get; set; } = string.Empty;
@@ -23,10 +23,13 @@ namespace Wishstar.Components.Pages.Context {
         public string ImageName { get; set; } = string.Empty;
 
         [PageContextItem]
+        public bool PrivateItem { get; set; } = true;
+
+        [PageContextItem]
         public double PriceInEUR { get; set; } = 0.0D;
 
         [PageContextItem]
-        public string CategoryName { get; set; } = string.Empty;
+        public int CategoryId { get; set; } = WishCategory.GetUncategorized().CategoryId;
 
         [PageContextItem]
         public IPageContext? ParentContext { get; set; } = null;
@@ -64,7 +67,7 @@ namespace Wishstar.Components.Pages.Context {
                 ProductLink = wish.ProductLink,
                 ImageName = wish.ImageName,
                 PriceInEUR = wish.ItemPrice.EUR,
-                CategoryName = wish.ItemCategory.CategoryName,
+                CategoryId = wish.CategoryId,
                 ParentContext = parentContext,
                 Action = PageContextAction.Update
             };

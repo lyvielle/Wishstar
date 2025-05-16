@@ -1,13 +1,11 @@
-using System.Diagnostics;
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.JSInterop;
 using Wishstar.Components.Pages.Context;
 using Wishstar.Extensions;
 using Wishstar.Models;
 
 namespace Wishstar.Components.Pages {
-    public partial class Wish {
+    public partial class Wish : IDisposable {
         public WishPageContext? Context { get; set; } = null;
         public WishItem WishItem { get; set; } = null!;
         public PageContextAction Action { get; set; } = PageContextAction.Add;
@@ -28,37 +26,50 @@ namespace Wishstar.Components.Pages {
             }
         }
 
+        private string _SelectedVendor = Models.Vendor.GetUnspecified().VendorName;
+        public string SelectedVendor {
+            get { return _SelectedVendor; }
+            set {
+                _SelectedVendor = value;
+                OnVendorSelected(value);
+            }
+        }
+
+        private string _SelectedCategory = WishCategory.GetUncategorized().CategoryName;
+        public string SelectedCategory {
+            get { return _SelectedCategory; }
+            set {
+                _SelectedCategory = value;
+                OnCategorySelected(value);
+            }
+        }
+
         #region Events
-        private void OnWishDescriptionChanged(ChangeEventArgs e) {
-            WishItem.ItemDescription = e.Value?.ToString() ?? string.Empty;
-        }
 
-        private void OnVendorSelected(ChangeEventArgs e) {
-            string? vendorName = e.Value?.ToString() ?? string.Empty;
-            if (vendorName.Equals("Select Vendor", StringComparison.OrdinalIgnoreCase)) {
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(vendorName) || vendorName == "new") {
-                NavigationManager.NavigateTo("/vendor", true);
+        private void OnVendorSelected(string vendorName) {
+            if (vendorName == "new") {
+                AddVendor();
+            } else if (vendorName == Models.Vendor.GetUnspecified().VendorName) {
+                WishItem.VendorId = Models.Vendor.GetUnspecified().VendorId;
             } else {
-                WishItem.VendorId = Database.GetVendorByName(vendorName)?.VendorId ?? Models.Vendor.CreateUnspecified().VendorId;
+                WishItem.VendorId = Database.GetVendorByName(vendorName)?.VendorId ?? Models.Vendor.GetUnspecified().VendorId;
             }
         }
 
-        private void OnCategorySelected(ChangeEventArgs e) {
-            string? categoryName = e.Value?.ToString() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(categoryName) || e.Value?.ToString() == "new") {
-                NavigationManager.NavigateTo("/category", true);
+        private void OnCategorySelected(string categoryName) {
+            if (categoryName == "new") {
+                AddCategory();
+            } else if (categoryName == WishCategory.GetUncategorized().CategoryName) {
+                WishItem.CategoryId = WishCategory.GetUncategorized().CategoryId;
             } else {
-                WishItem.ItemCategory = Database.GetCategoryByName(categoryName) ?? WishItem.ItemCategory;
+                WishItem.CategoryId = Database.GetCategoryByName(categoryName)?.CategoryId ?? WishCategory.GetUncategorized().CategoryId;
             }
         }
 
         private void OnCurrencySelected(ChangeEventArgs e) {
             string? currencyName = e.Value?.ToString() ?? string.Empty;
             if (!string.IsNullOrWhiteSpace(currencyName)) {
-                Currency = Enum.TryParse<CurrencyType>(currencyName, out CurrencyType currency) ? currency : CurrencyType.EUR;
+                Currency = Enum.TryParse(currencyName, out CurrencyType currency) ? currency : CurrencyType.EUR;
                 if (WishItem.ItemPrice.EUR != 0) {
                     PriceAmount = WishItem.ItemPrice.GetPrice(Currency);
                     StateHasChanged();
@@ -73,10 +84,9 @@ namespace Wishstar.Components.Pages {
         #endregion
 
         protected string NavigateUrl = string.Empty;
+        protected DotNetObjectReference<Wish> ObjectReference = null!;
 
         protected override void OnInitialized() {
-            base.OnInitialized();
-
             if (HttpContextAccessor.HttpContext == null || !HttpContextAccessor.HttpContext.Request.TryValidateLogin(out _, out User? user) || user == null) {
                 NavigateUrl = "/login";
                 return;
@@ -105,7 +115,18 @@ namespace Wishstar.Components.Pages {
                 WishItem = WishItem.CreateDefault(user.UserId);
             }
 
+            PriceAmount = WishItem.ItemPrice.GetPrice(Currency);
+
             StateHasChanged();
+        }
+
+        override protected async Task OnAfterRenderAsync(bool firstRender) {
+            if (firstRender) {
+                await JSRuntime.InvokeVoidAsync("registerHomeComponent", ObjectReference = DotNetObjectReference.Create(this));
+                if (!string.IsNullOrWhiteSpace(WishItem.ImageName)) {
+                    await JSRuntime.InvokeVoidAsync("setImage", ImageResolver.GetRelativeImageUrl(WishItem.ImageName));
+                }
+            }
         }
 
         protected override void OnAfterRender(bool firstRender) {
@@ -137,6 +158,15 @@ namespace Wishstar.Components.Pages {
         }
 
         [JSInvokable]
+        public void SetImage(string imageUrl) {
+            if (imageUrl.Contains('?')) {
+                imageUrl = imageUrl[(imageUrl.LastIndexOf('=') + 1)..];
+            }
+
+            WishItem.ImageName = imageUrl;
+        }
+
+        [JSInvokable]
         public void NavigateBack() {
             string url = Context?.ParentContext?.GetFullUrl() ?? "/";
             NavigationManager.NavigateTo(url, true);
@@ -161,8 +191,13 @@ namespace Wishstar.Components.Pages {
                 ProductLink = WishItem.ProductLink,
                 ImageName = WishItem.ImageName,
                 PriceInEUR = WishItem.ItemPrice.EUR,
-                CategoryName = WishItem.ItemCategory.CategoryName
+                CategoryId = WishItem.CategoryId
             };
+        }
+
+        public void Dispose() {
+            ObjectReference?.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 }

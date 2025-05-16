@@ -8,9 +8,9 @@ namespace Wishstar.Controllers {
     public class VendorController(ILogger<VendorController> logger) : ControllerBase {
         private readonly ILogger<VendorController> _Logger = logger;
 
-        public record class AddVendorRequest(string Name, string Website);
-        public record class UpdateVendorRequest(string Name, string Website);
-        public record class DeleteVendorRequest(string Name);
+        public record class AddVendorRequest(Vendor Vendor);
+        public record class UpdateVendorRequest(Vendor Vendor);
+        public record class DeleteVendorRequest(int VendorId);
 
         [HttpPost]
         [Route("add")]
@@ -20,22 +20,29 @@ namespace Wishstar.Controllers {
                     return Unauthorized("You must be logged in to add a vendor");
                 }
 
-                if (string.IsNullOrWhiteSpace(request.Name)) {
+                if (request.Vendor.VendorId <= 0) {
+                    return BadRequest("Vendor ID is invalid");
+                }
+
+                if (string.IsNullOrWhiteSpace(request.Vendor.VendorName)) {
                     return BadRequest("Vendor name is required");
                 }
 
-                if (string.IsNullOrWhiteSpace(request.Website)) {
+                if (string.IsNullOrWhiteSpace(request.Vendor.Website)) {
                     return BadRequest("Vendor website is required");
                 }
 
-                var vendor = WishDatabase.Load().GetVendors().FirstOrDefault(x => x.VendorName == request.Name);
+                var vendor = WishDatabase.Load().GetVendorById(request.Vendor.VendorId);
                 if (vendor != null) {
-                    return BadRequest("Vendor already exists");
+                    return BadRequest("Vendor id is already in use");
                 }
 
-                var newVendor = new Vendor(IdGenerator.GetNumericalId(), request.Name, request.Website);
-                WishDatabase.Load().AddVendor(newVendor);
+                vendor = WishDatabase.Load().GetVendorByName(request.Vendor.VendorName);
+                if (vendor != null) {
+                    return BadRequest("Vendor name is already in use");
+                }
 
+                WishDatabase.Load().AddVendor(request.Vendor);
                 return Ok();
             } catch (Exception ex) {
                 _Logger.LogError(ex, "Failed to add vendor");
@@ -51,22 +58,24 @@ namespace Wishstar.Controllers {
                     return Unauthorized("You must be logged in to add a vendor");
                 }
 
-                if (string.IsNullOrWhiteSpace(request.Name)) {
+                if (string.IsNullOrWhiteSpace(request.Vendor.VendorName)) {
                     return BadRequest("Vendor name is required");
                 }
 
-                if (string.IsNullOrWhiteSpace(request.Website)) {
+                if (string.IsNullOrWhiteSpace(request.Vendor.Website)) {
                     return BadRequest("Vendor website is required");
                 }
 
-                var oldVendor = WishDatabase.Load().GetVendors().FirstOrDefault(x => x.VendorName == request.Name);
-                if (oldVendor == null) {
+                var vendor = WishDatabase.Load().GetVendorById(request.Vendor.VendorId);
+                if (vendor == null) {
                     return BadRequest("Vendor does not exist");
                 }
 
-                Vendor newVendor = new(IdGenerator.GetNumericalId(), request.Name, request.Website);
-                WishDatabase.Load().UpdateVendor(oldVendor, newVendor);
+                if (WishDatabase.Load().GetVendorByName(request.Vendor.VendorName) != null) {
+                    return BadRequest("Vendor name is already in use");
+                }
 
+                WishDatabase.Load().UpdateVendor(request.Vendor.VendorId, request.Vendor);
                 return Ok();
             } catch (Exception ex) {
                 _Logger.LogError(ex, "Failed to update vendor");
@@ -82,19 +91,21 @@ namespace Wishstar.Controllers {
                     return Unauthorized("You must be logged in to add a vendor");
                 }
 
-                if (string.IsNullOrWhiteSpace(request.Name)) {
-                    return BadRequest("Vendor name is required");
+                if (request.VendorId <= 0) {
+                    return BadRequest("Vendor ID is invalid");
                 }
 
-                var vendor = WishDatabase.Load().GetVendors().FirstOrDefault(x => x.VendorName == request.Name);
+                var vendor = WishDatabase.Load().GetVendorById(request.VendorId);
                 if (vendor == null) {
                     return BadRequest("Vendor doesn't exists");
                 }
 
                 WishDatabase.Load().DeleteVendor(vendor);
+
+                int unspecifiedVendorId = Vendor.GetUnspecified().VendorId;
                 foreach (var wishItem in WishDatabase.Load().GetWishes()) {
                     if (wishItem.VendorId == vendor.VendorId) {
-                        wishItem.VendorId = Vendor.CreateUnspecified().VendorId;
+                        wishItem.VendorId = unspecifiedVendorId;
                         WishDatabase.Load().UpdateWish(wishItem.WishId, wishItem);
                     }
                 }

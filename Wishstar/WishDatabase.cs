@@ -18,11 +18,11 @@ namespace Wishstar {
             _VendorConfig = VendorConfig.Load();
 
             if (_CategoryConfig.Categories.Count == 0) {
-                _CategoryConfig.Categories.Add(WishCategory.CreateUncategorized());
+                _CategoryConfig.Categories.Add(WishCategory.GetUncategorized());
             }
 
             if (_VendorConfig.Vendors.Count == 0) {
-                _VendorConfig.Vendors.Add(Vendor.CreateUnspecified());
+                _VendorConfig.Vendors.Add(Vendor.GetUnspecified());
             }
 
 
@@ -35,6 +35,45 @@ namespace Wishstar {
             _UserConfig.Save();
             _WishItemConfig.Save();
             _VendorConfig.Save();
+        }
+
+        private static bool _Initialized = false;
+        private static readonly object _InitSync = new();
+        public void Initialize() {
+            lock (_InitSync) {
+                if (!_Initialized) {
+                    if (_CategoryConfig.Categories.Count == 0) {
+                        _CategoryConfig.Categories.Add(WishCategory.GetUncategorized());
+                    } else {
+                        _CategoryConfig.TryCleanConfig();
+                    }
+
+                    if (_VendorConfig.Vendors.Count == 0) {
+                        _VendorConfig.Vendors.Add(Vendor.GetUnspecified());
+                    } else {
+                        _VendorConfig.TryCleanConfig();
+                    }
+
+
+                    if (_UserConfig.Users.Count == 0) {
+                        _UserConfig.Users.Add(new User(IdGenerator.GetNumericalId(), "Default", "default@default.com", "replace-me", CurrencyType.EUR));
+                    } else {
+                        _UserConfig.TryCleanConfig();
+                    }
+
+                    var referencedImages = _WishItemConfig.Wishes.Select(w => w.ImageName).Distinct().Select(i => ImageResolver.GetImagePath(i));
+                    var existingImages = Directory.GetFiles(ImageResolver.ImageDirectory).Select(Path.GetFileName);
+                    foreach (var image in existingImages) {
+                        if (!referencedImages.Contains(image)) {
+                            if (File.Exists(image)) {
+                                File.Delete(image);
+                            }
+                        }
+                    }
+
+                    _Initialized = true;
+                }
+            }
         }
 
         public static WishDatabase Load() {
@@ -99,17 +138,23 @@ namespace Wishstar {
             }
         }
 
-        public WishCategory UpdateCategory(WishCategory oldCategory, WishCategory newCategory) {
+        public WishCategory? GetCategoryById(int categoryId) {
             lock (_Sync) {
-                var index = _CategoryConfig.Categories.IndexOf(oldCategory);
+                return _CategoryConfig.Categories.FirstOrDefault(c => c.CategoryId == categoryId);
+            }
+        }
+
+        public WishCategory UpdateCategory(int categoryId, WishCategory category) {
+            lock (_Sync) {
+                var index = _CategoryConfig.Categories.FindIndex(c => c.CategoryId == categoryId);
                 if (index == -1) {
                     throw new InvalidOperationException("Category not found");
                 }
 
-                _CategoryConfig.Categories[index] = newCategory;
+                _CategoryConfig.Categories[index] = category;
                 _CategoryConfig.Save();
 
-                return newCategory;
+                return category;
             }
         }
 
@@ -131,17 +176,17 @@ namespace Wishstar {
             }
         }
 
-        public Vendor UpdateVendor(Vendor oldVendor, Vendor newVendor) {
+        public Vendor UpdateVendor(int vendorId, Vendor vendor) {
             lock (_Sync) {
-                var index = _VendorConfig.Vendors.IndexOf(oldVendor);
+                var index = _VendorConfig.Vendors.FindIndex(i => i.VendorId == vendorId);
                 if (index == -1) {
                     throw new InvalidOperationException("Vendor not found");
                 }
 
-                _VendorConfig.Vendors[index] = newVendor;
+                _VendorConfig.Vendors[index] = vendor;
                 _VendorConfig.Save();
 
-                return newVendor;
+                return vendor;
             }
         }
 

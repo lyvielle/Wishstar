@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Wishstar.Components.Pages;
 using Wishstar.Extensions;
 using Wishstar.Models;
 
@@ -8,9 +9,9 @@ namespace Wishstar.Controllers {
     public class CategoryController(ILogger<CategoryController> logger) : ControllerBase {
         private readonly ILogger<CategoryController> _Logger = logger;
 
-        public record class AddCategoryRequest(string Name);
-        public record class UpdateCategoryRequest(string OldName, string NewName);
-        public record class DeleteCategoryRequest(string Name);
+        public record class AddCategoryRequest(WishCategory WishCategory);
+        public record class UpdateCategoryRequest(WishCategory WishCategory);
+        public record class DeleteCategoryRequest(int CategoryId);
 
         [HttpPost]
         [Route("add")]
@@ -20,17 +21,25 @@ namespace Wishstar.Controllers {
                     return Unauthorized("You must be logged in to add a category");
                 }
 
-                if (string.IsNullOrWhiteSpace(request.Name)) {
+                if (string.IsNullOrWhiteSpace(request.WishCategory.CategoryName)) {
                     return BadRequest("Category name is required");
                 }
 
-                var category = WishDatabase.Load().GetCategories().FirstOrDefault(x => x.CategoryName == request.Name);
-                if (category != null) {
-                    return BadRequest("Category already exists");
+                if (request.WishCategory.CategoryId <= 0) {
+                    return BadRequest("Category id cannot be 0 or negative");
                 }
 
-                var newCategory = new WishCategory(request.Name);
-                WishDatabase.Load().AddCategory(newCategory);
+                var category = WishDatabase.Load().GetCategoryById(request.WishCategory.CategoryId);
+                if (category != null) {
+                    return BadRequest("Category id is already ins use");
+                }
+
+                category = WishDatabase.Load().GetCategoryByName(request.WishCategory.CategoryName);
+                if (category != null) {
+                    return BadRequest("Category name is already in use");
+                }
+
+                WishDatabase.Load().AddCategory(request.WishCategory);
 
                 return Ok();
             } catch (Exception ex) {
@@ -47,17 +56,16 @@ namespace Wishstar.Controllers {
                     return Unauthorized("You must be logged in to update a category");
                 }
 
-                if (string.IsNullOrWhiteSpace(request.OldName) || string.IsNullOrWhiteSpace(request.NewName)) {
-                    return BadRequest("Both old and new category names are required");
+                if (string.IsNullOrWhiteSpace(request.WishCategory.CategoryName)) {
+                    return BadRequest("Category name is required");
                 }
 
-                var oldCategory = WishDatabase.Load().GetCategories().FirstOrDefault(x => x.CategoryName == request.OldName);
-                if (oldCategory == null) {
+                var category = WishDatabase.Load().GetCategoryById(request.WishCategory.CategoryId);
+                if (category == null) {
                     return BadRequest("Category does not exist");
                 }
 
-                var newCategory = new WishCategory(request.NewName);
-                WishDatabase.Load().UpdateCategory(oldCategory, newCategory);
+                WishDatabase.Load().UpdateCategory(request.WishCategory.CategoryId, request.WishCategory);
 
                 return Ok();
             } catch (Exception ex) {
@@ -74,19 +82,22 @@ namespace Wishstar.Controllers {
                     return Unauthorized("You must be logged in to delete a category");
                 }
 
-                if (string.IsNullOrWhiteSpace(request.Name)) {
-                    return BadRequest("Category name is required");
+                if (request.CategoryId <= 0) {
+                    return BadRequest("Category id cannot be 0 or negative");
                 }
 
-                var category = WishDatabase.Load().GetCategories().FirstOrDefault(x => x.CategoryName == request.Name);
+                var category = WishDatabase.Load().GetCategoryById(request.CategoryId);
                 if (category == null) {
                     return BadRequest("Category does not exist");
                 }
 
                 WishDatabase.Load().DeleteCategory(category);
+
+                int uncategorizedId = WishCategory.GetUncategorized().CategoryId;
                 foreach (var wish in WishDatabase.Load().GetWishes()) {
-                    if (wish.ItemCategory.CategoryName == request.Name) {
-                        wish.ItemCategory = WishCategory.CreateUncategorized();
+                    if (wish.CategoryId == request.CategoryId) {
+                        wish.CategoryId = uncategorizedId;
+                        WishDatabase.Load().UpdateWish(wish.WishId, wish);
                     }
                 }
 

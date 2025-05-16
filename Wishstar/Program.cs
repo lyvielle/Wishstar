@@ -21,7 +21,7 @@ if (builder.Environment.IsDevelopment()) {
 }
 
 var app = builder.Build();
-WishDatabase.Load(); // Initialize the database
+WishDatabase.Load().Initialize(); // Initialize the database
 
 if (!app.Environment.IsDevelopment()) {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);

@@ -1,7 +1,7 @@
 ﻿namespace Wishstar.Models {
     public static class IdGenerator {
         public static int GetNumericalId() {
-            return DateTime.UtcNow.Ticks.GetHashCode();
+            return Math.Abs(Guid.NewGuid().GetHashCode());
         }
     }
 }

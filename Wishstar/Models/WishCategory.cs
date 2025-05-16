@@ -1,14 +1,15 @@
 ﻿namespace Wishstar.Models {
-    public class WishCategory(string categoryName, string categoryDescription = "") {
+    public class WishCategory(int categoryId, string categoryName, string categoryDescription = "") {
+        public int CategoryId { get; set; } = categoryId;
         public string CategoryName { get; set; } = categoryName;
         public string CategoryDescription { get; set; } = categoryDescription;
 
         public static WishCategory CreateDefault() {
-            return new WishCategory(string.Empty, string.Empty);
+            return new WishCategory(IdGenerator.GetNumericalId(), string.Empty, string.Empty);
         }
 
-        public static WishCategory CreateUncategorized() {
-            return new WishCategory("Uncategorized", "No category description available.");
+        public static WishCategory GetUncategorized() {
+            return new WishCategory(0, "Uncategorized", "No category description available.");
         }
     }
 }

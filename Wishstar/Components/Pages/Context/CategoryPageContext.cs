@@ -5,6 +5,9 @@ namespace Wishstar.Components.Pages.Context {
         public string Page { get; set; } = $"{AppConfig.FullCurrentDomain}/category";
 
         [PageContextItem]
+        public int CategoryId { get; set; } = 0;
+
+        [PageContextItem]
         public string CategoryName { get; set; } = string.Empty;
 
         [PageContextItem]
@@ -39,6 +42,7 @@ namespace Wishstar.Components.Pages.Context {
 
         public static CategoryPageContext FromCategory(WishCategory category, IPageContext? parentContext = null) {
             return new CategoryPageContext() {
+                CategoryId = category.CategoryId,
                 CategoryName = category.CategoryName,
                 CategoryDescription = category.CategoryDescription,
                 Action = PageContextAction.Update,
