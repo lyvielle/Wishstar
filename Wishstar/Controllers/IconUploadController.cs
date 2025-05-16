@@ -12,21 +12,20 @@ namespace Wishstar.Controllers {
         [Route("upload")]
         public async Task<IActionResult> Upload([FromForm] IFormFile file) {
             try {
-                if(!Request.TryValidateLogin(out IActionResult? errorResult, out User? user) || user == null) {
+                if (!Request.TryValidateLogin(out IActionResult? errorResult, out User? user) || user == null) {
                     return Unauthorized("You must be logged in to upload an icon.");
                 }
 
-                if(file == null || file.Length == 0) {
+                if (file == null || file.Length == 0) {
                     return BadRequest("No file uploaded.");
                 }
 
                 string fileName = Path.GetFileName(file.FileName);
-                string fullBasePath = Path.GetFullPath(AppConfig.ImageBasePath);
-                string imgDirectory = Path.Combine(fullBasePath, "img");
+                string imgDirectory = Path.GetFullPath(AppConfig.ImageBasePath);
                 Directory.CreateDirectory(imgDirectory);
                 string physicalFilePath = Path.GetFullPath(Path.Combine(imgDirectory, fileName));
 
-                if(!physicalFilePath.StartsWith(imgDirectory)) {
+                if (!physicalFilePath.StartsWith(imgDirectory)) {
                     return BadRequest("Invalid path");
                 }
 
@@ -35,8 +34,8 @@ namespace Wishstar.Controllers {
                 using var stream = new FileStream(physicalFilePath, FileMode.Create);
                 await file.CopyToAsync(stream);
 
-                return Ok(new { url = ImageResolver.GetImageUrl(fileName) });
-            } catch(Exception ex) {
+                return Ok(new { url = ImageResolver.GetRelativeImageUrl(fileName) });
+            } catch (Exception ex) {
                 _Logger.LogError(ex, "Unable to upload icon");
                 return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while uploading the icon.");
             }
@@ -46,11 +45,11 @@ namespace Wishstar.Controllers {
         [Route("delete/{fileName}")]
         public IActionResult Delete(string fileName) {
             try {
-                if(!Request.TryValidateLogin(out IActionResult? errorResult, out User? user) || user == null) {
+                if (!Request.TryValidateLogin(out IActionResult? errorResult, out User? user) || user == null) {
                     return Unauthorized("You must be logged in to delete an icon.");
                 }
 
-                if(string.IsNullOrWhiteSpace(fileName)) {
+                if (string.IsNullOrWhiteSpace(fileName)) {
                     return BadRequest("File name is required.");
                 }
 
@@ -58,11 +57,11 @@ namespace Wishstar.Controllers {
                 string imgDirectory = Path.Combine(fullBasePath, "img");
                 string physicalFilePath = Path.GetFullPath(Path.Combine(imgDirectory, fileName));
 
-                if(!physicalFilePath.StartsWith(imgDirectory)) {
+                if (!physicalFilePath.StartsWith(imgDirectory)) {
                     return BadRequest("Invalid path");
                 }
 
-                if(!System.IO.File.Exists(physicalFilePath)) {
+                if (!System.IO.File.Exists(physicalFilePath)) {
                     return NotFound("File not found.");
                 }
 
@@ -70,7 +69,7 @@ namespace Wishstar.Controllers {
                 _Logger.LogInformation("{userName} deleted icon: {FileName}", user.Username, fileName);
 
                 return Ok(new { message = "Icon deleted successfully." });
-            } catch(Exception ex) {
+            } catch (Exception ex) {
                 _Logger.LogError(ex, "Unable to delete icon");
                 return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while deleting the icon.");
             }

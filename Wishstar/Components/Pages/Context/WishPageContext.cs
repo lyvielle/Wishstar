@@ -51,7 +51,7 @@ namespace Wishstar.Components.Pages.Context {
 
         public static WishPageContext CreateDefaultWith(IPageContext parentContext) {
             return new WishPageContext() {
-                ParentContext = parentContext
+                ParentContext = parentContext,
             };
         }
 

@@ -14,7 +14,7 @@ namespace Wishstar.Controllers {
 
         [HttpPost]
         [Route("add")]
-        public IActionResult Add([FromForm] AddWishRequest request) {
+        public IActionResult Add([FromBody] AddWishRequest request) {
             try {
                 if (!Request.TryValidateLogin(out _, out _)) {
                     return Unauthorized("You must be logged in to add a wish item");
@@ -40,7 +40,7 @@ namespace Wishstar.Controllers {
 
         [HttpPost]
         [Route("update")]
-        public IActionResult Update([FromForm] UpdateWishRequest request) {
+        public IActionResult Update([FromBody] UpdateWishRequest request) {
             try {
                 if (!Request.TryValidateLogin(out _, out _)) {
                     return Unauthorized("You must be logged in to update a wish item");
@@ -55,7 +55,7 @@ namespace Wishstar.Controllers {
                     return BadRequest("Wish item does not exist");
                 }
 
-                WishDatabase.Load().UpdateWish(oldWish, request.WishItem);
+                WishDatabase.Load().UpdateWish(oldWish.WishId, request.WishItem);
 
                 return Ok();
             } catch (Exception ex) {
@@ -66,7 +66,7 @@ namespace Wishstar.Controllers {
 
         [HttpPost]
         [Route("delete")]
-        public IActionResult Delete([FromForm] DeleteWishRequest request) {
+        public IActionResult Delete([FromBody] DeleteWishRequest request) {
             try {
                 if (!Request.TryValidateLogin(out _, out _)) {
                     return Unauthorized("You must be logged in to delete a wish item");

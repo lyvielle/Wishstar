@@ -14,7 +14,7 @@ namespace Wishstar.Controllers {
 
         [HttpPost]
         [Route("add")]
-        public IActionResult Add([FromForm] AddVendorRequest request) {
+        public IActionResult Add([FromBody] AddVendorRequest request) {
             try {
                 if (!Request.TryValidateLogin(out _, out _)) {
                     return Unauthorized("You must be logged in to add a vendor");
@@ -45,7 +45,7 @@ namespace Wishstar.Controllers {
 
         [HttpPost]
         [Route("update")]
-        public IActionResult Update([FromForm] UpdateVendorRequest request) {
+        public IActionResult Update([FromBody] UpdateVendorRequest request) {
             try {
                 if (!Request.TryValidateLogin(out _, out _)) {
                     return Unauthorized("You must be logged in to add a vendor");
@@ -76,7 +76,7 @@ namespace Wishstar.Controllers {
 
         [HttpPost]
         [Route("delete")]
-        public IActionResult Delete([FromForm] DeleteVendorRequest request) {
+        public IActionResult Delete([FromBody] DeleteVendorRequest request) {
             try {
                 if (!Request.TryValidateLogin(out _, out _)) {
                     return Unauthorized("You must be logged in to add a vendor");

@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Threading.Tasks;
+using System.Diagnostics;
 using Microsoft.AspNetCore.Components;
 using Wishstar.Components.Pages.Context;
 using Wishstar.Extensions;
@@ -78,20 +78,20 @@ namespace Wishstar.Components.Pages {
             List<WishItem> items = [.. Database.GetWishes()];
 
             if (!string.IsNullOrWhiteSpace(FilterPreferences.SearchText)) {
-                items = items.Where(w => w.ItemName.Contains(FilterPreferences.SearchText, StringComparison.OrdinalIgnoreCase) ||
-                    w.ItemDescription.Contains(FilterPreferences.SearchText, StringComparison.OrdinalIgnoreCase)).ToList();
+                items = [.. items.Where(w => w.ItemName.Contains(FilterPreferences.SearchText, StringComparison.OrdinalIgnoreCase) ||
+                    w.ItemDescription.Contains(FilterPreferences.SearchText, StringComparison.OrdinalIgnoreCase))];
             }
 
             if (FilterPreferences.VendorFilter != null) {
-                items = items.Where(w => w.VendorName == FilterPreferences.VendorFilter.VendorName).ToList();
+                items = [.. items.Where(w => w.VendorId == FilterPreferences.VendorFilter.VendorId)];
             }
 
             if (FilterPreferences.UserFilter != null) {
-                items = items.Where(w => w.UserId == FilterPreferences.UserFilter.UserId).ToList();
+                items = [.. items.Where(w => w.UserId == FilterPreferences.UserFilter.UserId)];
             }
 
             if (FilterPreferences.CategoryFilter != null) {
-                items = items.Where(w => w.ItemCategory.CategoryName == FilterPreferences.CategoryFilter.CategoryName).ToList();
+                items = [.. items.Where(w => w.ItemCategory.CategoryName == FilterPreferences.CategoryFilter.CategoryName)];
             }
 
             WishItems = [.. items];
@@ -100,7 +100,7 @@ namespace Wishstar.Components.Pages {
         #endregion
 
         public void ReferToLogin() {
-            NavigationManager.NavigateTo("/login");
+            NavigationManager.NavigateTo("/login", true);
         }
 
         public void SetPreferredCurrency(CurrencyType currency) {

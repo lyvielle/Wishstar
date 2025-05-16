@@ -12,6 +12,9 @@ namespace Wishstar.Configs {
 
     public class ConfigLoader<T>(string configName, string configBasePath) where T : IConfig, new() {
         private static T? _Instance = default;
+        private static readonly JsonSerializerOptions _JsonOptions = new() {
+            WriteIndented = true
+        };
 
         public bool IsEncrypted { get; set; } = false;
         public string ConfigName { get; } = configName;
@@ -26,7 +29,7 @@ namespace Wishstar.Configs {
         private byte[] _EncryptionKey = [];
         public byte[] EncryptionKey {
             get {
-                if(_EncryptionKey.Length != 32) {
+                if (_EncryptionKey.Length != 32) {
                     throw new InvalidOperationException("Key length must be 32 bytes");
                 }
 
@@ -34,7 +37,7 @@ namespace Wishstar.Configs {
             }
 
             set {
-                if(value.Length != 32) {
+                if (value.Length != 32) {
                     throw new InvalidOperationException("Key length must be 32 bytes");
                 }
 
@@ -45,7 +48,7 @@ namespace Wishstar.Configs {
         private byte[] _EncryptionIV = [];
         public byte[] EncryptionIV {
             get {
-                if(_EncryptionIV.Length != 16) {
+                if (_EncryptionIV.Length != 16) {
                     throw new InvalidOperationException("IV length must be 16 bytes");
                 }
 
@@ -53,7 +56,7 @@ namespace Wishstar.Configs {
             }
 
             set {
-                if(value.Length != 16) {
+                if (value.Length != 16) {
                     throw new InvalidOperationException("IV length must be 16 bytes");
                 }
 
@@ -62,28 +65,28 @@ namespace Wishstar.Configs {
         }
 
         public T LoadConfig() {
-            if(_Instance != null) {
+            if (_Instance != null) {
                 return _Instance;
             }
 
-            if(!Directory.Exists(ConfigBasePath)) {
+            if (!Directory.Exists(ConfigBasePath)) {
                 Directory.CreateDirectory(ConfigBasePath);
             }
 
-            if(File.Exists(ConfigPath)) {
+            if (File.Exists(ConfigPath)) {
                 string cfgJson;
-                if(IsEncrypted) {
+                if (IsEncrypted) {
                     byte[] cfgBytes = File.ReadAllBytes(ConfigPath);
                     try {
                         using Aes aes = AesFactory.Create(EncryptionKey, EncryptionIV);
 
                         cfgBytes = aes.DecryptCbc(cfgBytes, aes.IV);
                         cfgJson = Encoding.UTF8.GetString(cfgBytes);
-                    } catch(Exception) {
+                    } catch (Exception) {
                         try {
                             cfgJson = File.ReadAllText(ConfigPath);
                             JsonDocument.Parse(cfgJson);
-                        } catch(Exception) {
+                        } catch (Exception) {
                             return _Instance ??= new T();
                         }
                     }
@@ -91,7 +94,7 @@ namespace Wishstar.Configs {
                     cfgJson = File.ReadAllText(ConfigPath);
                 }
 
-                _Instance = JsonSerializer.Deserialize<T>(cfgJson) ?? new T();
+                _Instance = JsonSerializer.Deserialize<T>(cfgJson, _JsonOptions) ?? new T();
                 _Instance.TryCleanConfig();
 
                 return _Instance;
@@ -101,19 +104,19 @@ namespace Wishstar.Configs {
         }
 
         public void SaveConfig() {
-            if(_Instance == null) {
+            if (_Instance == null) {
                 return;
             }
 
             _Instance.TryCleanConfig();
 
-            if(!Directory.Exists(ConfigBasePath)) {
+            if (!Directory.Exists(ConfigBasePath)) {
                 Directory.CreateDirectory(ConfigBasePath);
             }
 
-            string cfgJson = JsonSerializer.Serialize(_Instance);
+            string cfgJson = JsonSerializer.Serialize(_Instance, _JsonOptions);
 
-            if(IsEncrypted) {
+            if (IsEncrypted) {
                 using Aes aes = AesFactory.Create(EncryptionKey, EncryptionIV);
 
                 byte[] cfgBytes = Encoding.UTF8.GetBytes(cfgJson);

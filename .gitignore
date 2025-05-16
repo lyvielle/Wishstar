@@ -1,6 +1,7 @@
 # Exclude build directories
 bin/
 obj/
+app/
 
 # Exclude Visual Studio files
 .vs/

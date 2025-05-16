@@ -1,4 +1,5 @@
-﻿@page "/login"
+﻿@rendermode InteractiveServer
+@page "/login"
 @using Wishstar.Extensions
 @using Wishstar.Models
 @inject NavigationManager NavigationManager
@@ -6,6 +7,7 @@
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -107,10 +109,10 @@
 			transition: all 0.2s ease;
 		}
 
-			.input-group input:focus {
-				outline: none;
-				box-shadow: 0 0 0 2px var(--primary);
-			}
+		.input-group input:focus {
+			outline: none;
+			box-shadow: 0 0 0 2px var(--primary);
+		}
 
 		.login-btn {
 			width: 100%;
@@ -124,26 +126,26 @@
 			transition: all 0.2s ease;
 		}
 
-			.login-btn:hover {
-				background: var(--primary);
-				color: white;
-			}
+		.login-btn:hover {
+			background: var(--primary);
+			color: white;
+		}
 
 		.additional-options {
 			margin-top: 1.5rem;
 			text-align: center;
 		}
 
-			.additional-options a {
-				color: var(--primary);
-				text-decoration: none;
-				font-size: 0.9rem;
-				transition: opacity 0.2s ease;
-			}
+		.additional-options a {
+			color: var(--primary);
+			text-decoration: none;
+			font-size: 0.9rem;
+			transition: opacity 0.2s ease;
+		}
 
-				.additional-options a:hover {
-					opacity: 0.8;
-				}
+		.additional-options a:hover {
+			opacity: 0.8;
+		}
 
 		.signup-prompt {
 			margin-top: 2rem;
@@ -151,6 +153,7 @@
 		}
 	</style>
 </head>
+
 <body>
 	<div class="login-container">
 		<div class="login-header">
@@ -181,8 +184,8 @@
 		</form>
 	</div>
 	<script>
-		$(document).ready(function() {
-			$('.login-form').submit(function(e) {
+		$(document).ready(function () {
+			$('.login-form').submit(function (e) {
 				e.preventDefault();
 
 				const $loginBtn = $('.login-btn');
@@ -201,15 +204,15 @@
 					url: '/api/login',
 					contentType: 'application/json',
 					data: JSON.stringify(loginData),
-					success: function() {
+					success: function () {
 						window.location.href = '/wishlist';
 					},
-					error: function() {
+					error: function () {
 						$('.login-form').prepend(
 							$('<div class="error-message">Invalid credentials. Please try again.</div>')
 						);
 					},
-					complete: function() {
+					complete: function () {
 						$loginBtn.text('Sign In');
 						$loginBtn.prop('disabled', false);
 					}
@@ -218,14 +221,17 @@
 		});
 	</script>
 </body>
+
 </html>
 
 @code {
-	protected override void OnInitialized() {
-		base.OnInitialized();
-		if(HttpContextAccessor.HttpContext != null) {
-			if(HttpContextAccessor.HttpContext.Request.TryValidateLogin(out _, out User? user) && user != null) {
-				NavigationManager.NavigateTo("/wishlist");
+	protected override void OnAfterRender(bool firstRender)
+	{
+		if (HttpContextAccessor.HttpContext != null)
+		{
+			if (HttpContextAccessor.HttpContext.Request.TryValidateLogin(out _, out User? user) && user != null)
+			{
+				NavigationManager.NavigateTo("/wishlist", true);
 			}
 		}
 	}

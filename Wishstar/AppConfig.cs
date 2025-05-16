@@ -1,7 +1,7 @@
 ﻿namespace Wishstar {
     public static class AppConfig {
-        public const string ConfigBasePath = "./cfg/";
-        public const string ImageBasePath = "./img/";
+        public const string ConfigBasePath = "./app/content/cfg/";
+        public const string ImageBasePath = "./app/content/img/";
 
         public const string CurrentDomain = "wishstar.lyvielle.io";
         public static bool UseHttps { get; set; } = false;

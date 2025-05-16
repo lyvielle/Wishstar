@@ -1,0 +1,11 @@
+@rendermode InteractiveServer
+@page "/"
+
+@code {
+    [Inject] NavigationManager NavigationManager { get; set; } = default!;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        NavigationManager.NavigateTo("/wishlist", true);
+    }
+}

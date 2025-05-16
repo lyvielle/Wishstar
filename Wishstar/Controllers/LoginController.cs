@@ -13,24 +13,24 @@ namespace Wishstar.Controllers {
         public record class LoginRequest(string Email, string Password);
 
         [HttpPost]
-        public IActionResult Login([FromForm] LoginRequest request) {
+        public IActionResult Login([FromBody] LoginRequest request) {
             try {
-                if(!Request.TryValidateLogin(out IActionResult? errorResult, out User? user)) {
-                    if(errorResult != null) {
+                if (!Request.TryValidateLogin(out IActionResult? errorResult, out User? user)) {
+                    if (errorResult != null) {
                         return errorResult;
                     }
 
-                    if(string.IsNullOrWhiteSpace(request.Email)) {
+                    if (string.IsNullOrWhiteSpace(request.Email)) {
                         return BadRequest("Email is required");
                     }
 
-                    if(string.IsNullOrWhiteSpace(request.Password)) {
+                    if (string.IsNullOrWhiteSpace(request.Password)) {
                         return BadRequest("Password is required");
                     }
 
                     string passwordHash = SHA256.HashData(Encoding.UTF8.GetBytes(request.Password)).ByteArrayToString();
                     user = WishDatabase.Load().GetUsers().FirstOrDefault(u => u.Email == request.Email && u.Token == passwordHash);
-                    if(user == null) {
+                    if (user == null) {
                         _Logger.LogWarning("Failed login attempt for email {Email}", request.Email);
                         return Unauthorized("Invalid email or password");
                     }
@@ -55,13 +55,13 @@ namespace Wishstar.Controllers {
 
                     return Ok();
                 } else {
-                    if(user == null) {
+                    if (user == null) {
                         return StatusCode(StatusCodes.Status500InternalServerError, "Missing user in database");
                     }
 
                     return Ok();
                 }
-            } catch(Exception ex) {
+            } catch (Exception ex) {
                 _Logger.LogError(ex, "Error during login");
                 return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred during login");
             }

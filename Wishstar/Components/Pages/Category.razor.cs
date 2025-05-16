@@ -12,7 +12,7 @@ namespace Wishstar.Components.Pages {
         protected override void OnInitialized() {
             base.OnInitialized();
             if (HttpContextAccessor.HttpContext == null || !HttpContextAccessor.HttpContext.Request.TryValidateLogin(out _, out User? user) || user == null) {
-                NavigationManager.NavigateTo("/login");
+                NavigationManager.NavigateTo("/login", true);
                 return;
             }
 
@@ -46,7 +46,7 @@ namespace Wishstar.Components.Pages {
         [JSInvokable]
         public void NavigateBack() {
             string url = Context?.ParentContext?.GetFullUrl() ?? "/";
-            NavigationManager.NavigateTo(url);
+            NavigationManager.NavigateTo(url, true);
         }
     }
 }

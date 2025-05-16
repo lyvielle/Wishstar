@@ -17,12 +17,17 @@ namespace Wishstar {
             _WishItemConfig = WishItemConfig.Load();
             _VendorConfig = VendorConfig.Load();
 
-            if (!_CategoryConfig.Categories.Any()) {
+            if (_CategoryConfig.Categories.Count == 0) {
                 _CategoryConfig.Categories.Add(WishCategory.CreateUncategorized());
             }
 
-            if (!_VendorConfig.Vendors.Any()) {
+            if (_VendorConfig.Vendors.Count == 0) {
                 _VendorConfig.Vendors.Add(Vendor.CreateUnspecified());
+            }
+
+
+            if (_UserConfig.Users.Count == 0) {
+                _UserConfig.Users.Add(new User(IdGenerator.GetNumericalId(), "Default", "default@default.com", "replace-me", CurrencyType.EUR));
             }
 
             // Ensure configs exist

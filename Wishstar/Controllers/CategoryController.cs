@@ -14,7 +14,7 @@ namespace Wishstar.Controllers {
 
         [HttpPost]
         [Route("add")]
-        public IActionResult Add([FromForm] AddCategoryRequest request) {
+        public IActionResult Add([FromBody] AddCategoryRequest request) {
             try {
                 if (!Request.TryValidateLogin(out _, out _)) {
                     return Unauthorized("You must be logged in to add a category");
@@ -41,7 +41,7 @@ namespace Wishstar.Controllers {
 
         [HttpPost]
         [Route("update")]
-        public IActionResult Update([FromForm] UpdateCategoryRequest request) {
+        public IActionResult Update([FromBody] UpdateCategoryRequest request) {
             try {
                 if (!Request.TryValidateLogin(out _, out _)) {
                     return Unauthorized("You must be logged in to update a category");
@@ -68,7 +68,7 @@ namespace Wishstar.Controllers {
 
         [HttpPost]
         [Route("delete")]
-        public IActionResult Delete([FromForm] DeleteCategoryRequest request) {
+        public IActionResult Delete([FromBody] DeleteCategoryRequest request) {
             try {
                 if (!Request.TryValidateLogin(out _, out _)) {
                     return Unauthorized("You must be logged in to delete a category");

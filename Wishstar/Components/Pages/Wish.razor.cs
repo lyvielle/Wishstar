@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.JSInterop;
@@ -28,27 +29,6 @@ namespace Wishstar.Components.Pages {
         }
 
         #region Events
-
-        private async Task OnImageSelected(InputFileChangeEventArgs e) {
-            if (e.FileCount == 0) {
-                return;
-            }
-
-            var file = e.File;
-            using var content = new MultipartFormDataContent();
-            var stream = file.OpenReadStream(maxAllowedSize: 120 * 1024 * 1024); // 120MB limit
-            content.Add(new StreamContent(stream), "file", file.Name);
-
-            var response = await HttpClient.PostAsync("api/icon/upload", content);
-            if (response.IsSuccessStatusCode) {
-                var imageName = await response.Content.ReadAsStringAsync();
-                ImageUrl = ImageResolver.GetImageUrl(imageName);
-                StateHasChanged();
-            } else {
-                ShowError("Failed to upload image.");
-            }
-        }
-
         private void OnWishDescriptionChanged(ChangeEventArgs e) {
             WishItem.ItemDescription = e.Value?.ToString() ?? string.Empty;
         }
@@ -60,7 +40,7 @@ namespace Wishstar.Components.Pages {
             }
 
             if (string.IsNullOrWhiteSpace(vendorName) || vendorName == "new") {
-                NavigationManager.NavigateTo("/vendor");
+                NavigationManager.NavigateTo("/vendor", true);
             } else {
                 WishItem.VendorId = Database.GetVendorByName(vendorName)?.VendorId ?? Models.Vendor.CreateUnspecified().VendorId;
             }
@@ -69,7 +49,7 @@ namespace Wishstar.Components.Pages {
         private void OnCategorySelected(ChangeEventArgs e) {
             string? categoryName = e.Value?.ToString() ?? string.Empty;
             if (string.IsNullOrWhiteSpace(categoryName) || e.Value?.ToString() == "new") {
-                NavigationManager.NavigateTo("/category");
+                NavigationManager.NavigateTo("/category", true);
             } else {
                 WishItem.ItemCategory = Database.GetCategoryByName(categoryName) ?? WishItem.ItemCategory;
             }
@@ -92,19 +72,20 @@ namespace Wishstar.Components.Pages {
 
         #endregion
 
+        protected string NavigateUrl = string.Empty;
+
         protected override void OnInitialized() {
             base.OnInitialized();
-            if (HttpContextAccessor.HttpContext == null || !HttpContextAccessor.HttpContext.Request.TryValidateLogin(out _, out
-            User?
-            user) || user == null) {
-                NavigationManager.NavigateTo("/login");
+
+            if (HttpContextAccessor.HttpContext == null || !HttpContextAccessor.HttpContext.Request.TryValidateLogin(out _, out User? user) || user == null) {
+                NavigateUrl = "/login";
                 return;
             }
 
-            NavigationManager.GetUriContext<WishPageContext>(out _, out WishPageContext? context, out Dictionary<string, string>?
+            NavigationManager.GetUriContext(out _, out WishPageContext? context, out Dictionary<string, string>?
             queryParameters);
             if (context == null) {
-                WishItem = Models.WishItem.CreateDefault(user.UserId);
+                WishItem = WishItem.CreateDefault(user.UserId);
                 Action = PageContextAction.Add;
                 return;
             }
@@ -117,14 +98,20 @@ namespace Wishstar.Components.Pages {
                     if (wish != null) {
                         WishItem = wish;
                     } else {
-                        WishItem = Models.WishItem.CreateDefault(user.UserId);
+                        WishItem = WishItem.CreateDefault(user.UserId);
                     }
                 }
             } else if (Context.Action == PageContextAction.Add) {
-                WishItem = Models.WishItem.CreateDefault(user.UserId);
+                WishItem = WishItem.CreateDefault(user.UserId);
             }
 
             StateHasChanged();
+        }
+
+        protected override void OnAfterRender(bool firstRender) {
+            if (!string.IsNullOrWhiteSpace(NavigateUrl)) {
+                NavigationManager.NavigateTo(NavigateUrl, true);
+            }
         }
 
         public void AddCategory() {
@@ -152,49 +139,7 @@ namespace Wishstar.Components.Pages {
         [JSInvokable]
         public void NavigateBack() {
             string url = Context?.ParentContext?.GetFullUrl() ?? "/";
-            NavigationManager.NavigateTo(url);
-        }
-
-        public async Task SaveOrUpdate() {
-            await SetLoading(true);
-            try {
-                WishCategory? category = Database.GetCategoryByName(WishItem.ItemCategory.CategoryName);
-                if (category == null) {
-                    ShowError("Category not found.");
-                    return;
-                }
-
-                Models.Vendor? vendor = Database.GetVendorById(WishItem.VendorId);
-                if (vendor == null) {
-                    ShowError("Vendor not found.");
-                    return;
-                }
-
-                if (string.IsNullOrWhiteSpace(WishItem.ItemName) || string.IsNullOrWhiteSpace(WishItem.ProductLink) || string.IsNullOrWhiteSpace(WishItem.ItemCategory.CategoryName)) {
-                    ShowError("Please fill all required fields.");
-                    return;
-                }
-
-                if (Action == PageContextAction.Add) {
-                    var response = await HttpClient.PostAsJsonAsync("api/wishes/add", WishItem);
-                    if (response.IsSuccessStatusCode) {
-                        NavigationManager.NavigateTo("/wishlist");
-                    } else {
-                        ShowError("Failed to save wish.");
-                    }
-                } else if (Action == PageContextAction.Update) {
-                    var response = await HttpClient.PutAsJsonAsync($"api/wishes/update", WishItem);
-                    if (response.IsSuccessStatusCode) {
-                        NavigateBack();
-                    } else {
-                        ShowError("Failed to update wish.");
-                    }
-                } else {
-                    throw new InvalidOperationException("Invalid action type.");
-                }
-            } finally {
-                await SetLoading(false);
-            }
+            NavigationManager.NavigateTo(url, true);
         }
 
         public async void ShowError(string message) {
