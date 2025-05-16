@@ -73,6 +73,19 @@ header {
     margin-bottom: 2rem;
 }
 
+.combo-add {
+    color: var(--primary);
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.combo-add i {
+    font-size: 0.9rem;
+}
+
 .search-bar,
 select {
     padding: 0.8rem 1.5rem;

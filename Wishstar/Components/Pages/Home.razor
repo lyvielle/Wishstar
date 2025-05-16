@@ -50,7 +50,10 @@
 					{
 						<option value="@vendor.VendorName">@vendor.VendorName</option>
 					}
-					<option>+ Add Vendor</option>
+					@if (IsLoggedIn)
+					{
+						<option class="combo-add">+ Add Vendor</option>
+					}
 				</select>
 				@if (SelectedVendor != "All Vendors" && SelectedVendor != Models.Vendor.GetUnspecified().VendorName)
 				{
@@ -72,7 +75,10 @@
 					{
 						<option>@category.CategoryName</option>
 					}
-					<option>+ Add Category</option>
+					@if (IsLoggedIn)
+					{
+						<option class="combo-add">+ Add Category</option>
+					}
 				</select>
 				@if (SelectedCategory != "All Categories" && SelectedCategory !=
 							WishCategory.GetUncategorized().CategoryName)
@@ -125,7 +131,10 @@
 			}
 		</div>
 
-		<button class="add-item" @onclick="(() => AddWishItem())">+</button>
+		@if (IsLoggedIn)
+		{
+			<button class="add-item" @onclick="(() => AddWishItem())">+</button>
+		}
 	</div>
 
 	<script>
