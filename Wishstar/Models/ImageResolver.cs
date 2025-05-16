@@ -11,6 +11,10 @@
                 throw new ArgumentNullException(nameof(imageName), "Image name cannot be null or empty.");
             }
 
+            if (!Directory.Exists(ImageDirectory)) {
+                Directory.CreateDirectory(ImageDirectory);
+            }
+
             string imagePath = Path.Combine(ImageDirectory, imageName);
             if (!imagePath.StartsWith(ImageDirectory)) {
                 throw new InvalidOperationException("Invalid image path.");
