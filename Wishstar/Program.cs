@@ -29,6 +29,15 @@ if (!app.Environment.IsDevelopment()) {
     app.UseHttpsRedirection();
 
     AppConfig.UseHttps = true;
+} else {
+    string localUrl = Environment.GetEnvironmentVariable("ASPNETCORE_URLS") ?? "localhost";
+    if (localUrl.StartsWith("http://")) {
+        localUrl = localUrl[7..];
+    } else if (localUrl.StartsWith("https://")) {
+        localUrl = localUrl[8..];
+    }
+
+    AppConfig.CurrentDomain = localUrl;
 }
 
 app.UseStaticFiles();

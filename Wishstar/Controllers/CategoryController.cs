@@ -65,6 +65,11 @@ namespace Wishstar.Controllers {
                     return BadRequest("Category does not exist");
                 }
 
+                category = WishDatabase.Load().GetCategoryByName(request.WishCategory.CategoryName);
+                if (category != null && category.CategoryId != request.WishCategory.CategoryId) {
+                    return BadRequest("Category name is already in use");
+                }
+
                 WishDatabase.Load().UpdateCategory(request.WishCategory.CategoryId, request.WishCategory);
 
                 return Ok();

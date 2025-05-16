@@ -35,7 +35,14 @@ namespace Wishstar.Components.Pages.Context {
         public IPageContext? ParentContext { get; set; } = null;
 
         [PageContextItem]
+        public CurrencyType DisplayCurrency { get; set; } = CurrencyType.EUR;
+
+        [PageContextItem]
         public PageContextAction Action { get; set; } = PageContextAction.Add;
+
+        public string Serialize() {
+            return IPageContextSerializer.Serialize(this, GetType());
+        }
 
         public static WishPageContext FromUri(string uri) {
             int contextIndex = uri.IndexOf("context=", StringComparison.OrdinalIgnoreCase);
@@ -58,7 +65,7 @@ namespace Wishstar.Components.Pages.Context {
             };
         }
 
-        public static WishPageContext FromWish(WishItem wish, IPageContext? parentContext = null) {
+        public static WishPageContext FromWish(WishItem wish, CurrencyType displayCurrency = CurrencyType.EUR, IPageContext? parentContext = null) {
             return new WishPageContext() {
                 WishId = wish.WishId,
                 ItemName = wish.ItemName,
@@ -69,6 +76,7 @@ namespace Wishstar.Components.Pages.Context {
                 PriceInEUR = wish.ItemPrice.EUR,
                 CategoryId = wish.CategoryId,
                 ParentContext = parentContext,
+                DisplayCurrency = displayCurrency,
                 Action = PageContextAction.Update
             };
         }

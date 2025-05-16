@@ -1,5 +1,5 @@
 ﻿namespace Wishstar.Models {
-    public class Vendor(int vendorId, string vendorName, string website) {
+    public class Vendor(int vendorId, string vendorName, string website) : ICloneable {
         public int VendorId { get; set; } = vendorId;
 
         public string VendorName { get; set; } = vendorName;
@@ -11,6 +11,10 @@
 
         public static Vendor CreateDefault() {
             return new Vendor(IdGenerator.GetNumericalId(), string.Empty, string.Empty);
+        }
+
+        public object Clone() {
+            return MemberwiseClone();
         }
     }
 }

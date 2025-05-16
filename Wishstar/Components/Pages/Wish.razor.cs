@@ -104,7 +104,7 @@ namespace Wishstar.Components.Pages {
             Action = Context.Action;
             if (Context.Action == PageContextAction.Update) {
                 if (queryParameters != null && queryParameters.TryGetValue("id", out string? wishId) && int.TryParse(wishId, out int numWishId)) {
-                    var wish = WishDatabase.Load().GetWishById(numWishId);
+                    var wish = (WishItem?)WishDatabase.Load().GetWishById(numWishId)?.Clone();
                     if (wish != null) {
                         WishItem = wish;
                     } else {
@@ -112,10 +112,28 @@ namespace Wishstar.Components.Pages {
                     }
                 }
             } else if (Context.Action == PageContextAction.Add) {
-                WishItem = WishItem.CreateDefault(user.UserId);
+                WishItem = new WishItem(Context.WishId == 0 ? IdGenerator.GetNumericalId() : Context.WishId,
+                    itemName: Context.ItemName, itemDescription: Context.ItemDescription, itemPrice: Price.FromEUR(Context.PriceInEUR),
+                    productLink: Context.ProductLink, privateItem: Context.PrivateItem, imageName: Context.ImageName,
+                    vendorId: Context.VendorId, userId: user.UserId, categoryId: Context.CategoryId);
+                Currency = Context.DisplayCurrency;
             }
 
             PriceAmount = WishItem.ItemPrice.GetPrice(Currency);
+
+            if (Context.CategoryId > 0) {
+                var category = Database.GetCategoryById(Context.CategoryId);
+                if (category != null) {
+                    SelectedCategory = category.CategoryName;
+                }
+            }
+
+            if (Context.VendorId > 0) {
+                var vendor = Database.GetVendorById(Context.VendorId);
+                if (vendor != null) {
+                    SelectedVendor = vendor.VendorName;
+                }
+            }
 
             StateHasChanged();
         }
@@ -191,7 +209,8 @@ namespace Wishstar.Components.Pages {
                 ProductLink = WishItem.ProductLink,
                 ImageName = WishItem.ImageName,
                 PriceInEUR = WishItem.ItemPrice.EUR,
-                CategoryId = WishItem.CategoryId
+                CategoryId = WishItem.CategoryId,
+                DisplayCurrency = Currency
             };
         }
 

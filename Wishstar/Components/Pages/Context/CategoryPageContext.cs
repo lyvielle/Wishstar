@@ -29,6 +29,10 @@ namespace Wishstar.Components.Pages.Context {
             return IPageContextSerializer.Deconstruct<CategoryPageContext>(contextContent);
         }
 
+        public string Serialize() {
+            return IPageContextSerializer.Serialize(this, GetType());
+        }
+
         public static string ToUri(CategoryPageContext context) {
             string contextString = IPageContextSerializer.Serialize(context);
             return $"context={contextString}";

@@ -91,7 +91,7 @@ label {
 }
 
 input {
-    width: 100%;
+    width: 80%;
     padding: 0.8rem 1.5rem;
     border: 1px solid var(--secondary);
     border-radius: 1rem;

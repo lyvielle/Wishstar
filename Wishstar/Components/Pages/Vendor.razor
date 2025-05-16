@@ -53,7 +53,7 @@
 </div>
 
 <script>
-	function disableButton($btn)) {
+	function disableButton($btn) {
 		if ($btn) {
 			$btn.html('<i class="fas fa-spinner fa-spin"></i> Saving...');
 			$btn.prop('disabled', true);
@@ -82,15 +82,16 @@
 		disableButton($('#deleteVendor'));
 
 		let url = "/api/vendors/add";
-		let errorMessage = "Failed to save vendor. Please try again."
-
-		if (action === 'Update') {
+		if (action == 'Add') {
+			vendor = { Vendor: vendor };
+		} else if (action === 'Update') {
 			url = "/api/vendors/update";
-			errorMessage = "Failed to update vendor. Please try again.";
+			vendor = { Vendor: vendor };
 		} else if (action == 'Delete') {
 			url = "api/vendors/delete";
-			errorMessage = "Failed to delete vendor. Please try again";
-			vendor = { VendorId: vendor.VendorId };
+			vendor = { VendorId: vendor.vendorId };
+		} else {
+			throw new Error('Unsupported action');
 		}
 
 		$.ajax({
@@ -103,6 +104,7 @@
 					window.componentInstance.invokeMethodAsync('NavigateBack');
 				} else {
 					console.error("Component instance not registered.");
+					showError("Navigating back is currently unavailable");
 				}
 			},
 			error: function (jqXHR, textStatus, errorThrown) {

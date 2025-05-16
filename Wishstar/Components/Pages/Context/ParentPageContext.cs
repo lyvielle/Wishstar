@@ -8,9 +8,13 @@
             };
         }
 
+        public string Serialize() {
+            return IPageContextSerializer.Serialize(this, GetType());
+        }
+
         public static ParentPageContext FromUri(string uri) {
             int contextIndex = uri.IndexOf("context=", StringComparison.OrdinalIgnoreCase);
-            if(contextIndex == -1) {
+            if (contextIndex == -1) {
                 return new ParentPageContext();
             }
 

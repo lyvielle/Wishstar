@@ -71,7 +71,8 @@ namespace Wishstar.Controllers {
                     return BadRequest("Vendor does not exist");
                 }
 
-                if (WishDatabase.Load().GetVendorByName(request.Vendor.VendorName) != null) {
+                vendor = WishDatabase.Load().GetVendorByName(request.Vendor.VendorName);
+                if (vendor != null && vendor.VendorId != request.Vendor.VendorId) {
                     return BadRequest("Vendor name is already in use");
                 }
 

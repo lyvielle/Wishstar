@@ -28,7 +28,7 @@ namespace Wishstar.Components.Pages {
             Action = Context.Action;
             if (Context.Action == PageContextAction.Update) {
                 if (queryParameters != null && queryParameters.TryGetValue("id", out string? categoryId) && int.TryParse(categoryId, out int id)) {
-                    var category = WishDatabase.Load().GetCategoryById(id);
+                    var category = (WishCategory?)WishDatabase.Load().GetCategoryById(id)?.Clone();
                     if (category != null) {
                         CategoryItem = category;
                     } else {

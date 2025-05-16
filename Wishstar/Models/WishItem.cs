@@ -3,7 +3,7 @@ using Wishstar.Converters;
 
 namespace Wishstar.Models {
     public class WishItem(int wishId, string itemName, string itemDescription,
-                      Price itemPrice, string productLink, bool privateItem, string imageName, int vendorId, int userId, int categoryId) {
+                      Price itemPrice, string productLink, bool privateItem, string imageName, int vendorId, int userId, int categoryId) : ICloneable {
         public int WishId { get; set; } = wishId;
 
         public string ItemName { get; set; } = itemName;
@@ -27,6 +27,12 @@ namespace Wishstar.Models {
                 vendorId: Vendor.GetUnspecified().VendorId,
                 userId: 0,
                 categoryId: 0);
+        }
+
+        public object Clone() {
+            var clone = (WishItem)MemberwiseClone();
+            clone.ItemPrice = ItemPrice;
+            return clone;
         }
     }
 

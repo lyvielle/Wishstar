@@ -17,6 +17,10 @@
         [PageContextItem]
         public IPageContext? ParentContext { get; set; } = null;
 
+        public string Serialize() {
+            return IPageContextSerializer.Serialize(this, GetType());
+        }
+
         public static VendorPageContext FromUri(string uri) {
             int contextIndex = uri.IndexOf("context=", StringComparison.OrdinalIgnoreCase);
             if (contextIndex == -1) {

@@ -34,7 +34,7 @@
             {
                 <button class="save-btn" id="deleteCategory"
                     @onclick="@(() => JSRuntime.InvokeVoidAsync("updateCategory", CategoryItem, Enum.GetName(PageContextAction.Delete)))">
-                    Delete Vendor
+                    Delete Category
                 </button>
             }
             <button class="save-btn" id="saveCategory"
@@ -53,7 +53,7 @@
 </div>
 
 <script>
-    function disableButton($btn)) {
+    function disableButton($btn) {
         if ($btn) {
             $btn.html('<i class="fas fa-spinner fa-spin"></i> Saving...');
             $btn.prop('disabled', true);
@@ -77,12 +77,16 @@
         disableButton($('#deleteCategory'));
 
         let url = '/api/categories/add';
-        if (action === 'Update') {
+        if (action == 'Add') {
+            category = { WishCategory: category };
+        } else if (action === 'Update') {
             url = "/api/categories/update";
-            errorMessage = "Failed to update category. Please try again.";
+            category = { WishCategory: category };
         } else if (action == 'Delete') {
             url = "api/categories/delete";
-            errorMessage = "Failed to delete category. Please try again";
+            category = { CategoryId: category.categoryId };
+        } else {
+            throw new Error('Unsupported action');
         }
 
         $.ajax({

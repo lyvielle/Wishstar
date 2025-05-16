@@ -32,7 +32,7 @@ namespace Wishstar.Components.Pages {
                 Action = Context.Action;
                 if (Context.Action == PageContextAction.Update) {
                     if (queryParameters != null && queryParameters.TryGetValue("id", out string? vendorId) && int.TryParse(vendorId, out int id)) {
-                        var vendor = WishDatabase.Load().GetVendorById(id);
+                        var vendor = (Models.Vendor?)WishDatabase.Load().GetVendorById(id)?.Clone();
                         if (vendor != null) {
                             VendorItem = vendor;
                         } else {

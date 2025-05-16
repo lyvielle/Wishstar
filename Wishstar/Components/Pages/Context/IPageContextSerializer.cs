@@ -28,7 +28,7 @@ namespace Wishstar.Components.Pages.Context {
                     var value = x.GetValue(context);
                     if (value != null) {
                         if (typeof(IPageContext).IsAssignableFrom(x.PropertyType)) {
-                            value = Serialize(value, value.GetType());
+                            value = Uri.EscapeDataString(Serialize(value, value.GetType()));
                         }
 
                         string? stringValue = value.ToString();
@@ -67,7 +67,7 @@ namespace Wishstar.Components.Pages.Context {
                         var property = contextType.GetProperty(key);
                         if (property != null) {
                             if (typeof(IPageContext).IsAssignableFrom(property.PropertyType)) {
-                                var subContext = Deconstruct(value, property.PropertyType);
+                                var subContext = Deconstruct(Uri.UnescapeDataString(value), property.PropertyType);
                                 property.SetValue(instance, subContext);
                             } else if (property.PropertyType == typeof(string)) {
                                 property.SetValue(instance, value);

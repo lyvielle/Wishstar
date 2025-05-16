@@ -147,7 +147,7 @@ namespace Wishstar.Components.Pages {
 
         public void EditWishItem(WishItem wishItem) {
             NavigationManager.NavigateToWithContext("/wish", PageContextAction.Update,
-                context: WishPageContext.FromWish(wishItem, GetPageContext()),
+                context: WishPageContext.FromWish(wishItem, DisplayCurrencyType, GetPageContext()),
                 queryParameters: new() {
                 { "id", wishItem.WishId.ToString() } });
         }
@@ -203,7 +203,7 @@ namespace Wishstar.Components.Pages {
         }
 
         private IPageContext GetPageContext() {
-            return ParentPageContext.Create(NavigationManager.Uri);
+            return ParentPageContext.Create("/wishlist");
         }
 
         public void Dispose() {
