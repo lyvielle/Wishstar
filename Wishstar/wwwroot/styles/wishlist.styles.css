@@ -29,21 +29,23 @@ body {
     }
 }
 
+
 .container {
     max-width: 1280px;
     margin: 0 auto;
-    padding: 2rem;
+    padding: 3rem;
     position: relative;
+    min-height: 80vh;
+    overflow-y: auto;
 }
 
 .container::before {
     content: '';
-    position: fixed;
-    top: 2rem;
-    left: 50%;
-    transform: translateX(-50%);
-    width: calc(100% - 4rem);
-    height: calc(100% - 4rem);
+    position: absolute;
+    top: 1.5rem;
+    left: 1.5rem;
+    width: calc(100% - 3rem);
+    height: calc(100% - 3rem);
     background: var(--mica);
     backdrop-filter: blur(20px);
     border-radius: 2rem;
@@ -56,7 +58,7 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 2rem;
+    padding: 1rem 0rem;
     margin-bottom: 2rem;
 }
 
@@ -95,6 +97,10 @@ select {
     backdrop-filter: blur(5px);
     font-size: 1rem;
     transition: all 0.2s ease;
+}
+
+.search-bar {
+    width: 90%;
 }
 
 .wishlist-grid {
@@ -178,6 +184,10 @@ select {
     align-items: center;
 }
 
+.search-container {
+    display: block;
+}
+
 .edit-btn {
     width: 32px;
     height: 38px;
@@ -213,6 +223,8 @@ select {
     background: rgba(255, 179, 198, 0.15);
     color: var(--primary);
     padding: 0.8rem 2rem;
+    margin-left: 1rem;
+    margin-right: 1rem;
     border-radius: 2rem;
     border: 1px solid var(--secondary);
     backdrop-filter: blur(5px);
@@ -268,9 +280,49 @@ select {
     box-shadow: 0 4px 12px rgba(255, 179, 198, 0.3);
 }
 
+.currency-selector-alt {
+    display: none;
+}
+
+.separator {
+    border: none;
+    height: 1px;
+    background-color: #ccc;
+    margin: 1.5rem 0;
+}
+
 @media (max-width: 768px) {
     .controls {
         grid-template-columns: 1fr;
+    }
+
+    header {
+        flex-direction: column;
+        align-items: center;
+        padding: 1rem;
+    }
+
+    .logo {
+        text-align: center;
+        width: 100%;
+        order: 0;
+        margin-bottom: 1rem;
+        font-weight: bold;
+    }
+
+    .search-container {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .currency-selector {
+        display: none;
+    }
+
+    .currency-selector-alt {
+        display: flex;
+        margin-left: 1rem;
     }
 
     .container::before {

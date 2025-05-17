@@ -34,8 +34,19 @@
 			</div>
 		</header>
 
+		<hr class="separator">
+
 		<div class="controls">
-			<input type="text" class="search-bar" placeholder="Search items..." @onchange="OnSearchTextChange">
+			<div class="search-container">
+				<input type="text" class="search-bar" placeholder="Search items..." @onchange="OnSearchTextChange">
+				<select class="currency-selector-alt" @onchange="OnCurrencyChange">
+					@foreach (var currency in CurrencyDescriptor.GetAllCurrencies())
+					{
+						<option>@currency.Code</option>
+					}
+				</select>
+			</div>
+
 			<select class="user-filter" @onchange="OnUserFilterChange">
 				<option>All Users</option>
 				@foreach (var user in Database.GetUsers())
