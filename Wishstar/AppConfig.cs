@@ -2,6 +2,7 @@
     public static class AppConfig {
         public const string ConfigBasePath = "./app/content/cfg/";
         public const string ImageBasePath = "./app/content/img/";
+        public const string WellKnownBasePath = "./wwwroot/.well-known/";
 
         public static string CurrentDomain { get; set; } = "wishstar.lyvielle.io";
         public static bool UseHttps { get; set; } = false;
