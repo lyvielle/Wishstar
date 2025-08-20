@@ -122,16 +122,18 @@
 										class="fas fa-trash"></i></button>
 							</div>
 						}
-						<img src="@ImageResolver.GetRelativeImageUrl(wishItem.ImageName)" class="product-image"
-							alt="@wishItem.ItemDescription"
-							@onclick="@(() => NavigationManager.NavigateTo(wishItem.ProductLink, true, true))">
+						<a href="@wishItem.ProductLink" target="_blank" rel="noopener noreferrer"
+							style="cursor: pointer; border: none;">
+							<img src="@ImageResolver.GetRelativeImageUrl(wishItem.ImageName)" class="product-image"
+								alt="@wishItem.ItemDescription" />
+						</a>
 						<div class="vendor">@(Database.GetVendorById(wishItem.VendorId)?.VendorName ??
 											Models.Vendor.GetUnspecified().VendorName)</div>
-			<h3>@wishItem.ItemName</h3>
-			<p>@wishItem.ItemDescription</p>
-			<div class="price">@wishItem.ItemPrice.ToString(DisplayCurrencyType)</div>
-			<div class="user">@(Database.GetUserById(wishItem.UserId)?.Username ?? "Unknown")</div>
-			@if (wishItem.PrivateItem)
+						<h3>@wishItem.ItemName</h3>
+						<p>@wishItem.ItemDescription</p>
+						<div class="price">@wishItem.ItemPrice.ToString(DisplayCurrencyType)</div>
+						<div class="user">@(Database.GetUserById(wishItem.UserId)?.Username ?? "Unknown")</div>
+						@if (wishItem.PrivateItem)
 						{
 							<div class="private-indicator" title="Private item">
 								<i class="fas fa-lock"></i>
