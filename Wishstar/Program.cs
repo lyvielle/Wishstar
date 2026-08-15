@@ -24,20 +24,20 @@ if (builder.Environment.IsDevelopment()) {
 var app = builder.Build();
 WishDatabase.Load().Initialize(); // Initialize the database
 
+string localUrl = Environment.GetEnvironmentVariable("SERVER_URL") ?? "localhost";
+if (localUrl.StartsWith("http://")) {
+    localUrl = localUrl[7..];
+} else if (localUrl.StartsWith("https://")) {
+    localUrl = localUrl[8..];
+}
+
+AppConfig.CurrentDomain = localUrl;
+
 if (!app.Environment.IsDevelopment()) {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
     app.UseHsts();
 
     AppConfig.UseHttps = true;
-} else {
-    string localUrl = Environment.GetEnvironmentVariable("ASPNETCORE_URLS") ?? "localhost";
-    if (localUrl.StartsWith("http://")) {
-        localUrl = localUrl[7..];
-    } else if (localUrl.StartsWith("https://")) {
-        localUrl = localUrl[8..];
-    }
-
-    AppConfig.CurrentDomain = localUrl;
 }
 
 app.UseForwardedHeaders(new ForwardedHeadersOptions {
