@@ -70,9 +70,10 @@ header {
 
 .controls {
     display: grid;
-    grid-template-columns: 1fr auto auto auto;
+    grid-template-columns: 1fr auto auto auto auto;
     gap: 1.5rem;
     margin-bottom: 2rem;
+    align-items: center;
 }
 
 .combo-add {
@@ -150,6 +151,20 @@ select {
     margin-top: auto;
     padding-top: 1rem;
     border-top: 1px solid rgba(255, 179, 198, 0.2);
+}
+
+.switch-sort-direction-btn {
+    cursor: pointer;
+    background-color: #FFF0F3;
+    width: 32px;
+    height: 32px;
+    border: 0px solid #ccc;
+    border-radius: 4px;
+    display: flex;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
 }
 
 .user {

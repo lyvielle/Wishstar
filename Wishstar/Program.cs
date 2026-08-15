@@ -29,6 +29,8 @@ if (localUrl.StartsWith("http://")) {
     localUrl = localUrl[7..];
 } else if (localUrl.StartsWith("https://")) {
     localUrl = localUrl[8..];
+} else if (localUrl.StartsWith('$')) {
+    localUrl = "localhost";
 }
 
 AppConfig.CurrentDomain = localUrl;

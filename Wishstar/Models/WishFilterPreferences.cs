@@ -12,7 +12,7 @@ namespace Wishstar.Models {
                 SetProperty(ref _Vendor, value);
             }
         }
-        
+
         private User? _User = null;
         public User? UserFilter {
             get { return _User; }
@@ -29,6 +29,14 @@ namespace Wishstar.Models {
             }
         }
 
+        private SortDirection _SortDirection = SortDirection.Ascending;
+        public SortDirection SortDirection {
+            get { return _SortDirection; }
+            set {
+                SetProperty(ref _SortDirection, value);
+            }
+        }
+
         private string? _SearchText = null;
         public string? SearchText {
             get { return _SearchText; }
@@ -38,7 +46,7 @@ namespace Wishstar.Models {
         }
 
         public bool SetProperty<T>(ref T property, T value, [CallerMemberName] string? propertyName = null) {
-            if(EqualityComparer<T>.Default.Equals(property, value)) {
+            if (EqualityComparer<T>.Default.Equals(property, value)) {
                 return false;
             }
 
