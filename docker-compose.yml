@@ -6,7 +6,7 @@ services:
     stop_grace_period: 90s
     build:
       context: ./Wishstar
-      dockerfile: Wishstar/Dockerfile
+      dockerfile: Dockerfile
     environment:
       SERVER_URL: $PUBLIC_SERVER_URL$
     ports:
