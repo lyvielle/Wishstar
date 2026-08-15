@@ -5,7 +5,7 @@ services:
     hostname: wishstar
     stop_grace_period: 90s
     build:
-      context: .
+      context: ./Wishstar
       dockerfile: Wishstar/Dockerfile
     environment:
       SERVER_URL: $PUBLIC_SERVER_URL$
