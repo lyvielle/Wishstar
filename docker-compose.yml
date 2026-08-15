@@ -12,5 +12,5 @@ services:
     ports:
       - "${HOST_PORT}:8080"
     volumes:
-      - ./wishstar_data:/app/app  # Persistent storage for /app
+      - /srv/wishstar/data:/app/app
     restart: unless-stopped
