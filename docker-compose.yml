@@ -1,0 +1,16 @@
+services:
+  wishstar:
+    image: wishstar:latest
+    container_name: wishstar
+    hostname: wishstar
+    stop_grace_period: 90s
+    build:
+      context: .
+      dockerfile: Wishstar/Dockerfile
+    environment:
+      SERVER_URL: $PUBLIC_SERVER_URL$
+    ports:
+      - "8080"
+    volumes:
+      - ./wishstar_data:/app/app  # Persistent storage for /app
+    restart: unless-stopped
