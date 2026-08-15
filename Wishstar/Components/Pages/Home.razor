@@ -1,9 +1,5 @@
 ﻿@rendermode InteractiveServer
 @page "/wishlist"
-@using System.Collections.ObjectModel
-@using System.ComponentModel
-@using Wishstar.Components.Pages.Context
-@using Wishstar.Extensions
 @using Wishstar.Models
 @inject NavigationManager NavigationManager
 @inject IHttpContextAccessor HttpContextAccessor
@@ -105,6 +101,16 @@
 					</button>
 				}
 			</div>
+			<button class="switch-sort-direction-btn" @onclick="SwitchSortDirection">
+				@if (FilterPreferences.SortDirection == SortDirection.Ascending)
+				{
+					<i class="fa-solid fa-arrow-up-9-1"></i>
+				}
+				else
+				{
+					<i class="fa-solid fa-arrow-down-9-1"></i>
+				}
+			</button>
 		</div>
 
 		<div class="wishlist-grid">
@@ -117,47 +123,47 @@
 						{
 							<div class="item-actions">
 								<button class="action-btn" @onclick="(() => EditWishItem(wishItem))"><i
-										class="fas fa-pencil"></i></button>
-								<button class="action-btn" @onclick="(() => DeleteWishItem(wishItem))"><i
+									class="fas fa-pencil"></i></button>
+									<button class="action-btn" @onclick="(() => DeleteWishItem(wishItem))"><i
 										class="fas fa-trash"></i></button>
-							</div>
+									</div>
+								}
+								<a href="@wishItem.ProductLink" target="_blank" rel="noopener noreferrer"
+								   style="cursor: pointer; border: none;">
+									<img src="@ImageResolver.GetRelativeImageUrl(wishItem.ImageName)" class="product-image"
+										 alt="@wishItem.ItemDescription" />
+								</a>
+								<div class="vendor">@(Database.GetVendorById(wishItem.VendorId)?.VendorName ??
+																																																																																																														Models.Vendor.GetUnspecified().VendorName)</div>
+									<h3>@wishItem.ItemName</h3>
+									<p>@wishItem.ItemDescription</p>
+									<div class="price">@wishItem.ItemPrice.ToString(DisplayCurrencyType)</div>
+									<div class="user">@(Database.GetUserById(wishItem.UserId)?.Username ?? "Unknown")</div>
+									@if (wishItem.PrivateItem)
+									{
+										<div class="private-indicator" title="Private item">
+											<i class="fas fa-lock"></i>
+										</div>
+									}
+								</a>
+							}
 						}
-						<a href="@wishItem.ProductLink" target="_blank" rel="noopener noreferrer"
-							style="cursor: pointer; border: none;">
-							<img src="@ImageResolver.GetRelativeImageUrl(wishItem.ImageName)" class="product-image"
-								alt="@wishItem.ItemDescription" />
-						</a>
-						<div class="vendor">@(Database.GetVendorById(wishItem.VendorId)?.VendorName ??
-											Models.Vendor.GetUnspecified().VendorName)</div>
-						<h3>@wishItem.ItemName</h3>
-						<p>@wishItem.ItemDescription</p>
-						<div class="price">@wishItem.ItemPrice.ToString(DisplayCurrencyType)</div>
-						<div class="user">@(Database.GetUserById(wishItem.UserId)?.Username ?? "Unknown")</div>
-						@if (wishItem.PrivateItem)
-						{
-							<div class="private-indicator" title="Private item">
-								<i class="fas fa-lock"></i>
-							</div>
+					</div>
+
+					@if (IsLoggedIn)
+					{
+						<button class="add-item" @onclick="(() => AddWishItem())">+</button>
+					}
+				</div>
+
+				<script>
+					function registerHomeComponent(instance) {
+						if (!window.registeredComponent) {
+							window.registeredComponent = instance;
 						}
-					</a>
-				}
+					}
+				</script>
 			}
-		</div>
-
-		@if (IsLoggedIn)
-		{
-			<button class="add-item" @onclick="(() => AddWishItem())">+</button>
-		}
-	</div>
-
-	<script>
-		function registerHomeComponent(instance) {
-			if (!window.registeredComponent) {
-				window.registeredComponent = instance;
-			}
-		}
-	</script>
-}
 catch (Exception ex)
 {
 	<p>Error: @ex.Message</p>

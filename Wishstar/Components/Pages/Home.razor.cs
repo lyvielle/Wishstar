@@ -122,6 +122,10 @@ namespace Wishstar.Components.Pages {
                 items = [.. items.Where(w => w.CategoryId == FilterPreferences.CategoryFilter.CategoryId)];
             }
 
+            if (FilterPreferences.SortDirection == SortDirection.Descending) {
+                items.Reverse();
+            }
+
             WishItems = [.. items];
             StateHasChanged();
         }
@@ -139,6 +143,12 @@ namespace Wishstar.Components.Pages {
             }
 
             StateHasChanged();
+        }
+
+        public void SwitchSortDirection() {
+            FilterPreferences.SortDirection = FilterPreferences.SortDirection == SortDirection.Ascending
+                ? SortDirection.Descending
+                : SortDirection.Ascending;
         }
 
         public void AddWishItem() {
@@ -202,9 +212,7 @@ namespace Wishstar.Components.Pages {
             }
         }
 
-        private IPageContext GetPageContext() {
-            return ParentPageContext.Create("/wishlist");
-        }
+        private static ParentPageContext GetPageContext() => ParentPageContext.Create("/wishlist");
 
         public void Dispose() {
             FilterPreferences.PropertyChanged -= OnFilterPreferencesChanged;
