@@ -8,9 +8,9 @@ services:
       context: ./Wishstar
       dockerfile: Dockerfile
     environment:
-      SERVER_URL: $PUBLIC_SERVER_URL$
+      SERVER_URL: ${SERVER_URL}
     ports:
-      - "8080"
+      - "${HOST_PORT}:8080"
     volumes:
       - ./wishstar_data:/app/app  # Persistent storage for /app
     restart: unless-stopped
