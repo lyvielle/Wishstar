@@ -1,170 +1,253 @@
-﻿@rendermode InteractiveServer
+﻿@page "/"
 @page "/wishlist"
-@using Wishstar.Models
+@implements IAsyncDisposable
 @inject NavigationManager NavigationManager
-@inject IHttpContextAccessor HttpContextAccessor
-@inject HttpClient HttpClient
-@inject IJSRuntime JSRuntime
+@inject IJSRuntime JS
+@inject UserSession Session
 
 <PageTitle>💫 Wishstar</PageTitle>
-<HeadContent>
-	<link rel="stylesheet" href="styles/wishlist.styles.css">
-</HeadContent>
 
-@try
+<div class="page">
+    <div class="surface">
+        <header class="app-header">
+            <a class="logo" href="/wishlist" aria-label="Wishstar home">💫 Wishstar</a>
+            <div class="header-actions">
+                <label class="visually-hidden" for="currency">Currency</label>
+                <select id="currency" class="select select-compact" value="@DisplayCurrency" @onchange="OnCurrencyChangedAsync">
+                    @foreach (var currency in CurrencyDescriptor.GetAllCurrencies())
+                    {
+                        <option value="@currency.Code">@currency.Symbol @currency.Code</option>
+                    }
+                </select>
+                @if (Session.User is { } currentUser)
+                {
+                    <span class="header-user" title="Logged in as @currentUser.Username">
+                        <i class="fas fa-circle-user" aria-hidden="true"></i>
+                        <span>@currentUser.Username</span>
+                    </span>
+                    <button type="button" class="btn btn-ghost btn-icon" title="Log out" aria-label="Log out" @onclick="LogoutAsync">
+                        <i class="fas fa-arrow-right-from-bracket" aria-hidden="true"></i>
+                    </button>
+                }
+                else
+                {
+                    <a class="btn btn-soft" href="/login" data-enhance-nav="false">
+                        <i class="fas fa-right-to-bracket" aria-hidden="true"></i>
+                        <span>Login</span>
+                    </a>
+                }
+            </div>
+        </header>
+
+        <section class="toolbar" aria-label="Search and filters">
+            <div class="toolbar-search">
+                <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                <input type="search" class="input" placeholder="Search wishes…" aria-label="Search wishes"
+                       @bind="SearchText" @bind:event="oninput" @bind:after="ApplyFiltersAndSaveAsync" />
+                <button type="button" class="btn btn-soft btn-filters @(_filtersOpen ? "is-open" : null)"
+                        aria-expanded="@(_filtersOpen ? "true" : "false")" aria-controls="filters"
+                        @onclick="() => _filtersOpen = !_filtersOpen">
+                    <i class="fas fa-sliders" aria-hidden="true"></i>
+                    <span>Filters</span>
+                    @if (ActiveFilterCount > 0)
+                    {
+                        <span class="pill">@ActiveFilterCount</span>
+                    }
+                </button>
+            </div>
+
+            <div id="filters" class="toolbar-filters @(_filtersOpen ? "is-open" : null)">
+                <div class="filter">
+                    <label for="filter-user">Wished by</label>
+                    <select id="filter-user" class="select" @bind="UserFilter" @bind:after="ApplyFiltersAndSaveAsync">
+                        <option value="">Everyone</option>
+                        @foreach (var user in _users)
+                        {
+                            <option value="@user.UserId">@user.Username</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="filter">
+                    <label for="filter-vendor">Vendor</label>
+                    <div class="filter-row">
+                        <select id="filter-vendor" class="select" @bind="VendorFilter" @bind:after="ApplyFiltersAndSaveAsync">
+                            <option value="">All vendors</option>
+                            @foreach (var vendor in _vendors)
+                            {
+                                <option value="@vendor.VendorId">@vendor.VendorName</option>
+                            }
+                        </select>
+                        @if (Session.IsLoggedIn)
+                        {
+                            <button type="button" class="btn btn-ghost btn-icon" title="Edit vendor" aria-label="Edit selected vendor"
+                                    disabled="@(!CanEditVendor)" @onclick="EditVendor">
+                                <i class="fas fa-pen" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="btn btn-ghost btn-icon" title="Add vendor" aria-label="Add vendor" @onclick="AddVendor">
+                                <i class="fas fa-plus" aria-hidden="true"></i>
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="filter">
+                    <label for="filter-category">Category</label>
+                    <div class="filter-row">
+                        <select id="filter-category" class="select" @bind="CategoryFilter" @bind:after="ApplyFiltersAndSaveAsync">
+                            <option value="">All categories</option>
+                            @foreach (var category in _categories)
+                            {
+                                <option value="@category.CategoryId">@category.CategoryName</option>
+                            }
+                        </select>
+                        @if (Session.IsLoggedIn)
+                        {
+                            <button type="button" class="btn btn-ghost btn-icon" title="Edit category" aria-label="Edit selected category"
+                                    disabled="@(!CanEditCategory)" @onclick="EditCategory">
+                                <i class="fas fa-pen" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="btn btn-ghost btn-icon" title="Add category" aria-label="Add category" @onclick="AddCategory">
+                                <i class="fas fa-plus" aria-hidden="true"></i>
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="filter">
+                    <label for="sort">Sort by</label>
+                    <div class="filter-row">
+                        <select id="sort" class="select" value="@SortBy" @onchange="OnSortChangedAsync">
+                            <option value="@WishSort.Added">Date added</option>
+                            <option value="@WishSort.Rating">Rating</option>
+                            <option value="@WishSort.Price">Price</option>
+                            <option value="@WishSort.Name">Name</option>
+                        </select>
+                        <button type="button" class="btn btn-ghost btn-icon" @onclick="ToggleSortDirectionAsync"
+                                title="@SortDirectionLabel" aria-label="@SortDirectionLabel">
+                            <i class="fas @(SortDirection == SortDirection.Ascending ? "fa-arrow-up-short-wide" : "fa-arrow-down-wide-short")" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="results-bar">
+            <span>@_visible.Count @(_visible.Count == 1 ? "wish" : "wishes")</span>
+            @if (HasActiveFilters)
+            {
+                <button type="button" class="link-btn" @onclick="ClearFiltersAsync">Clear filters</button>
+            }
+        </div>
+
+        @if (_visible.Count == 0)
+        {
+            <div class="empty-state">
+                <div class="empty-icon" aria-hidden="true">🌠</div>
+                @if (HasActiveFilters)
+                {
+                    <p>No wishes match these filters.</p>
+                    <button type="button" class="btn btn-soft" @onclick="ClearFiltersAsync">Clear filters</button>
+                }
+                else
+                {
+                    <p>No wishes yet.</p>
+                    @if (Session.IsLoggedIn)
+                    {
+                        <button type="button" class="btn btn-primary" @onclick="AddWish">Add the first wish</button>
+                    }
+                }
+            </div>
+        }
+        else
+        {
+            <div class="wish-grid">
+                @for (int index = 0; index < _visible.Count; index++)
+                {
+                    var item = _visible[index];
+                    var wish = item.Wish;
+                    bool eager = index < 4;
+                    <article class="wish-card" @key="wish.WishId">
+                        <a class="wish-media" href="@item.Link" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">
+                            @if (item.HasImage)
+                            {
+                                <img src="@ImageStore.GetUrl(wish.ImageName, ImageVariant.Small)"
+                                     srcset="@($"{ImageStore.GetUrl(wish.ImageName, ImageVariant.Small)} 480w, {ImageStore.GetUrl(wish.ImageName, ImageVariant.Medium)} 960w")"
+                                     sizes="(max-width: 600px) 50vw, (max-width: 1000px) 33vw, 300px"
+                                     width="480" height="360" alt=""
+                                     loading="@(eager ? "eager" : "lazy")"
+                                     fetchpriority="@(eager ? "high" : "auto")"
+                                     decoding="async" />
+                            }
+                            else
+                            {
+                                <span class="wish-placeholder"><i class="fas fa-gift" aria-hidden="true"></i></span>
+                            }
+                        </a>
+
+                        @if (wish.PrivateItem)
+                        {
+                            <span class="badge-private" title="Private – only visible when logged in">
+                                <i class="fas fa-lock" aria-hidden="true"></i>
+                                <span class="visually-hidden">Private</span>
+                            </span>
+                        }
+
+                        @if (Session.IsLoggedIn)
+                        {
+                            <div class="wish-actions">
+                                <button type="button" class="icon-btn" title="Edit" aria-label="Edit @wish.ItemName" @onclick="() => EditWish(wish)">
+                                    <i class="fas fa-pen" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" class="icon-btn icon-btn-danger" title="Delete" aria-label="Delete @wish.ItemName" @onclick="() => ConfirmDelete(wish)">
+                                    <i class="fas fa-trash" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        }
+
+                        <div class="wish-body">
+                            <div class="wish-meta">
+                                <span class="wish-vendor">@item.VendorName</span>
+                                @if (wish.Rating > 0)
+                                {
+                                    <StarRating Value="wish.Rating" Class="stars-sm" />
+                                }
+                            </div>
+                            <h3 class="wish-title">
+                                @if (item.Link != null)
+                                {
+                                    <a href="@item.Link" target="_blank" rel="noopener noreferrer">@wish.ItemName</a>
+                                }
+                                else
+                                {
+                                    @wish.ItemName
+                                }
+                            </h3>
+                            @if (!string.IsNullOrWhiteSpace(wish.ItemDescription))
+                            {
+                                <p class="wish-desc">@wish.ItemDescription</p>
+                            }
+                            @if (item.CategoryName != null)
+                            {
+                                <span class="chip">@item.CategoryName</span>
+                            }
+                            <div class="wish-footer">
+                                <span class="wish-price">@wish.ItemPrice.ToString(DisplayCurrency)</span>
+                                <span class="wish-user"><i class="fas fa-heart" aria-hidden="true"></i> @item.UserName</span>
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@if (Session.IsLoggedIn)
 {
-	<div class="container">
-		<header>
-			<div class="logo">💫 Wishstar</div>
-			<div>
-				<select class="currency-selector" @onchange="OnCurrencyChange">
-					@foreach (var currency in CurrencyDescriptor.GetAllCurrencies())
-					{
-						<option>@currency.Code</option>
-					}
-				</select>
-				@if (!IsLoggedIn)
-				{
-					<button class="login-btn" @onclick="ReferToLogin">Login</button>
-				}
-			</div>
-		</header>
-
-		<hr class="separator">
-
-		<div class="controls">
-			<div class="search-container">
-				<input type="text" class="search-bar" placeholder="Search items..." @onchange="OnSearchTextChange">
-				<select class="currency-selector-alt" @onchange="OnCurrencyChange">
-					@foreach (var currency in CurrencyDescriptor.GetAllCurrencies())
-					{
-						<option>@currency.Code</option>
-					}
-				</select>
-			</div>
-
-			<select class="user-filter" @onchange="OnUserFilterChange">
-				<option>All Users</option>
-				@foreach (var user in Database.GetUsers())
-				{
-					<option>@user.Username</option>
-				}
-			</select>
-			<div class="select-container">
-				<select @bind="SelectedVendor">
-					<option>All Vendors</option>
-					@foreach (var vendor in Database.GetVendors())
-					{
-						<option value="@vendor.VendorName">@vendor.VendorName</option>
-					}
-					@if (IsLoggedIn)
-					{
-						<option class="combo-add">+ Add Vendor</option>
-					}
-				</select>
-				@if (SelectedVendor != "All Vendors" && SelectedVendor != Models.Vendor.GetUnspecified().VendorName)
-				{
-					<button class="edit-btn" @onclick="() => EditVendor()">
-						<i class="fas fa-pen"></i>
-					</button>
-				}
-				else
-				{
-					<button class="edit-btn" disabled>
-						<i class="fas fa-pen"></i>
-					</button>
-				}
-			</div>
-			<div class="select-container">
-				<select class="category-filter" @bind="SelectedCategory">
-					<option>All Categories</option>
-					@foreach (var category in Database.GetCategories())
-					{
-						<option>@category.CategoryName</option>
-					}
-					@if (IsLoggedIn)
-					{
-						<option class="combo-add">+ Add Category</option>
-					}
-				</select>
-				@if (SelectedCategory != "All Categories" && SelectedCategory !=
-							WishCategory.GetUncategorized().CategoryName)
-				{
-					<button class="edit-btn" @onclick="() => EditCategory()">
-						<i class="fas fa-pen"></i>
-					</button>
-				}
-				else
-				{
-					<button class="edit-btn" disabled>
-						<i class="fas fa-pen"></i>
-					</button>
-				}
-			</div>
-			<button class="switch-sort-direction-btn" @onclick="SwitchSortDirection">
-				@if (FilterPreferences.SortDirection == SortDirection.Ascending)
-				{
-					<i class="fa-solid fa-arrow-up-9-1"></i>
-				}
-				else
-				{
-					<i class="fa-solid fa-arrow-down-9-1"></i>
-				}
-			</button>
-		</div>
-
-		<div class="wishlist-grid">
-			@foreach (var wishItem in WishItems)
-			{
-				@if (!wishItem.PrivateItem || IsLoggedIn)
-				{
-					<a href="#" class="wish-item">
-						@if (IsLoggedIn)
-						{
-							<div class="item-actions">
-								<button class="action-btn" @onclick="(() => EditWishItem(wishItem))"><i
-									class="fas fa-pencil"></i></button>
-									<button class="action-btn" @onclick="(() => DeleteWishItem(wishItem))"><i
-										class="fas fa-trash"></i></button>
-									</div>
-								}
-								<a href="@wishItem.ProductLink" target="_blank" rel="noopener noreferrer"
-								   style="cursor: pointer; border: none;">
-									<img src="@ImageResolver.GetRelativeImageUrl(wishItem.ImageName)" class="product-image"
-										 alt="@wishItem.ItemDescription" />
-								</a>
-								<div class="vendor">@(Database.GetVendorById(wishItem.VendorId)?.VendorName ??
-																																																																																																														Models.Vendor.GetUnspecified().VendorName)</div>
-									<h3>@wishItem.ItemName</h3>
-									<p>@wishItem.ItemDescription</p>
-									<div class="price">@wishItem.ItemPrice.ToString(DisplayCurrencyType)</div>
-									<div class="user">@(Database.GetUserById(wishItem.UserId)?.Username ?? "Unknown")</div>
-									@if (wishItem.PrivateItem)
-									{
-										<div class="private-indicator" title="Private item">
-											<i class="fas fa-lock"></i>
-										</div>
-									}
-								</a>
-							}
-						}
-					</div>
-
-					@if (IsLoggedIn)
-					{
-						<button class="add-item" @onclick="(() => AddWishItem())">+</button>
-					}
-				</div>
-
-				<script>
-					function registerHomeComponent(instance) {
-						if (!window.registeredComponent) {
-							window.registeredComponent = instance;
-						}
-					}
-				</script>
-			}
-catch (Exception ex)
-{
-	<p>Error: @ex.Message</p>
+    <button type="button" class="fab" title="Add wish" aria-label="Add wish" @onclick="AddWish">
+        <i class="fas fa-plus" aria-hidden="true"></i>
+    </button>
 }
+
+<ConfirmDialog @ref="_confirm" Title="Delete wish?" />

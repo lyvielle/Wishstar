@@ -1,3 +1,5 @@
 app/
 bin/
 obj/
+**/*.user
+.vs/

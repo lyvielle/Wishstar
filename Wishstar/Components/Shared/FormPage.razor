@@ -1,0 +1,30 @@
+@* Shared frame for the wish / vendor / category forms: back button, title and the form card. *@
+
+<div class="page page-narrow">
+    <div class="surface">
+        <header class="form-header">
+            <button type="button" class="btn btn-ghost btn-back" @onclick="OnBack" aria-label="Back">
+                <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                <span>Back</span>
+            </button>
+            <h1>@Title</h1>
+        </header>
+
+        @if (!string.IsNullOrEmpty(Error))
+        {
+            <div class="alert alert-error" role="alert">
+                <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+                <span>@Error</span>
+            </div>
+        }
+
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public EventCallback OnBack { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

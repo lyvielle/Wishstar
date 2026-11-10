@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Wishstar.Extensions;
 using Wishstar.Models;
+using Wishstar.Services;
 
 namespace Wishstar.Controllers {
     [ApiController]
@@ -8,62 +10,55 @@ namespace Wishstar.Controllers {
     public class IconUploadController(ILogger<IconUploadController> logger) : ControllerBase {
         private readonly ILogger<IconUploadController> _Logger = logger;
 
-        [HttpPost]
-        [Route("upload")]
-        public async Task<IActionResult> Upload([FromForm] IFormFile file) {
+        [HttpPost("upload")]
+        [RequestSizeLimit(ImageStore.MaxUploadBytes + 64 * 1024)]
+        [RequestFormLimits(MultipartBodyLengthLimit = ImageStore.MaxUploadBytes + 64 * 1024)]
+        [EnableRateLimiting(RateLimitPolicies.Upload)]
+        public async Task<IActionResult> Upload([FromForm] IFormFile file, CancellationToken cancellationToken) {
+            if (!Request.TryValidateLogin(out _, out User? user) || user == null) {
+                return Unauthorized("You must be logged in to upload an image.");
+            }
+
+            if (file == null || file.Length == 0) {
+                return BadRequest("No file uploaded.");
+            }
+
+            if (file.Length > ImageStore.MaxUploadBytes) {
+                return BadRequest("The image is too large (max. 25 MB).");
+            }
+
             try {
-                if (!Request.TryValidateLogin(out IActionResult? errorResult, out User? user) || user == null) {
-                    return Unauthorized("You must be logged in to upload an icon.");
-                }
+                await using var stream = file.OpenReadStream();
+                string imageName = await ImageStore.SaveUploadAsync(stream, cancellationToken);
+                _Logger.LogInformation("{UserName} uploaded image {ImageName} ({Bytes} bytes)", user.Username, imageName, file.Length);
 
-                if (file == null || file.Length == 0) {
-                    return BadRequest("No file uploaded.");
-                }
-
-                string fileName = IdGenerator.GetNumericalId() + Path.GetExtension(file.FileName);
-                string filePath = ImageResolver.GetImagePath(fileName) ?? throw new InvalidOperationException("Unable to resolve image path.");
-
-                _Logger.LogInformation("{userName} uploading icon: {FileName}", user.Username, fileName);
-
-                using var stream = new FileStream(filePath, FileMode.Create);
-                await file.CopyToAsync(stream);
-
-                return Ok(new { url = ImageResolver.GetRelativeImageUrl(fileName) });
-            } catch (Exception ex) {
-                _Logger.LogError(ex, "Unable to upload icon");
-                return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while uploading the icon.");
+                return Ok(new { fileName = imageName, url = ImageStore.GetUrl(imageName, ImageVariant.Medium) });
+            } catch (InvalidDataException ex) {
+                return BadRequest(ex.Message);
+            } catch (Exception ex) when (ex is not OperationCanceledException) {
+                _Logger.LogError(ex, "Unable to process uploaded image");
+                return StatusCode(StatusCodes.Status500InternalServerError, "The image could not be processed.");
             }
         }
 
-        [HttpPost]
-        [Route("delete/{fileName}")]
+        [HttpPost("delete/{fileName}")]
         public IActionResult Delete(string fileName) {
-            try {
-                if (!Request.TryValidateLogin(out IActionResult? errorResult, out User? user) || user == null) {
-                    return Unauthorized("You must be logged in to delete an icon.");
-                }
-
-                if (string.IsNullOrWhiteSpace(fileName)) {
-                    return BadRequest("File name is required.");
-                }
-
-                if (fileName.Contains('/')) {
-                    fileName = fileName.Split('/').Last();
-                }
-
-                string filePath = ImageResolver.GetImagePath(fileName) ?? throw new InvalidOperationException("Unable to resolve image path.");
-                if (!System.IO.File.Exists(filePath)) {
-                    return NotFound("File not found.");
-                }
-
-                System.IO.File.Delete(filePath);
-                _Logger.LogInformation("{userName} deleted icon: {FileName}", user.Username, fileName);
-
-                return Ok(new { message = "Icon deleted successfully." });
-            } catch (Exception ex) {
-                _Logger.LogError(ex, "Unable to delete icon");
-                return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while deleting the icon.");
+            if (!Request.TryValidateLogin(out _, out User? user) || user == null) {
+                return Unauthorized("You must be logged in to delete an image.");
             }
+
+            if (!ImageStore.Exists(fileName)) {
+                return NotFound("File not found.");
+            }
+
+            // Images that still belong to a wish are removed together with the wish instead.
+            if (WishDatabase.Load().IsImageReferenced(fileName)) {
+                return Conflict("The image is still used by a wish.");
+            }
+
+            ImageStore.Delete(fileName);
+            _Logger.LogInformation("{UserName} deleted image {FileName}", user.Username, fileName);
+            return Ok(new { message = "Image deleted successfully." });
         }
     }
 }

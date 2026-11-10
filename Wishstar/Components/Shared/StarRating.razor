@@ -1,0 +1,62 @@
+@* Displays a 1–5 star rating, or lets the user pick one when ValueChanged is bound. *@
+
+@if (ReadOnly)
+{
+    <span class="stars @Class" role="img" aria-label="@Label" title="@Label">
+        @for (int i = 1; i <= WishItem.MaxRating; i++)
+        {
+            <i class="@(i <= Value ? "fas fa-star is-on" : "far fa-star")" aria-hidden="true"></i>
+        }
+    </span>
+}
+else
+{
+    <div class="stars stars-input @Class" role="radiogroup" aria-label="How much is this wished for?">
+        @for (int i = 1; i <= WishItem.MaxRating; i++)
+        {
+            int star = i;
+            bool on = star <= (_hover ?? Value);
+            <button type="button"
+                    class="star-btn @(on ? "is-on" : null)"
+                    role="radio"
+                    aria-checked="@(star == Value ? "true" : "false")"
+                    aria-label="@StarLabel(star)"
+                    title="@StarLabel(star)"
+                    @onclick="() => SetAsync(star)"
+                    @onmouseenter="() => _hover = star"
+                    @onmouseleave="() => _hover = null">
+                <i class="@(on ? "fas" : "far") fa-star" aria-hidden="true"></i>
+            </button>
+        }
+        <span class="stars-caption">@Caption</span>
+    </div>
+}
+
+@code {
+    [Parameter] public int Value { get; set; }
+    [Parameter] public EventCallback<int> ValueChanged { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private bool ReadOnly => !ValueChanged.HasDelegate;
+    private int? _hover;
+
+    private string Label => Value > 0 ? $"Wished for: {Value} of {WishItem.MaxRating} stars" : "Not rated";
+
+    private string Caption => (_hover ?? Value) switch {
+        1 => "Nice to have",
+        2 => "Would like it",
+        3 => "Really want it",
+        4 => "Want it a lot",
+        5 => "Dream wish!",
+        _ => "Not rated"
+    };
+
+    private static string StarLabel(int star) => star == 1 ? "1 star" : $"{star} stars";
+
+    private async Task SetAsync(int star)
+    {
+        // Clicking the current rating again clears it.
+        Value = star == Value ? 0 : star;
+        await ValueChanged.InvokeAsync(Value);
+    }
+}

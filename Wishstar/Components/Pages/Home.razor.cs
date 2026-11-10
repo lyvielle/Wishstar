@@ -1,223 +1,287 @@
-using System.Collections.ObjectModel;
-using System.ComponentModel;
+using System.Text.Json;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
-using Wishstar.Components.Pages.Context;
-using Wishstar.Extensions;
+using Wishstar.Components.Shared;
 using Wishstar.Models;
+using Wishstar.Services;
 
 namespace Wishstar.Components.Pages {
-    public partial class Home : IDisposable {
-        public WishDatabase Database { get; } = WishDatabase.Load();
-        public CurrencyType DisplayCurrencyType { get; set; } = CurrencyType.EUR;
-        public bool IsLoggedIn { get; set; } = false;
+    public enum WishSort {
+        Added,
+        Rating,
+        Price,
+        Name
+    }
 
-        public ObservableCollection<WishItem> WishItems { get; set; } = [];
-        public WishFilterPreferences FilterPreferences { get; set; } = new();
-
-        public User? User { get; set; } = null;
-
-        protected string _SelectedVendor = "All Vendors";
-        public string SelectedVendor {
-            get { return _SelectedVendor; }
-            set {
-                _SelectedVendor = value;
-                OnVendorFilterChange(value);
-            }
+    public partial class Home {
+        private sealed record WishView(WishItem Wish, string VendorName, string? CategoryName, string UserName, string? Link) {
+            public bool HasImage => !string.IsNullOrWhiteSpace(Wish.ImageName);
         }
 
-        protected string _SelectedCategory = "All Categories";
-        public string SelectedCategory {
-            get { return _SelectedCategory; }
-            set {
-                _SelectedCategory = value;
-                OnCategoryFilterChange(value);
-            }
-        }
+        /// <summary>Filter state that survives navigation and reloads (stored in sessionStorage).</summary>
+        private sealed record FilterState(string? Search, int? User, int? Vendor, int? Category, WishSort Sort,
+            SortDirection Direction, CurrencyType? Currency);
 
-        protected DotNetObjectReference<Home> ObjectReference { get; set; } = null!;
+        private static readonly JsonSerializerOptions _JsonOptions = new(JsonSerializerDefaults.Web);
+
+        private WishDatabase Database { get; } = WishDatabase.Load();
+
+        private User[] _users = [];
+        private Models.Vendor[] _vendors = [];
+        private WishCategory[] _categories = [];
+        private List<WishView> _visible = [];
+
+        private ConfirmDialog _confirm = default!;
+        private bool _filtersOpen;
+        private bool _interactive;
+        private bool _restoreScrollPending;
+        private bool _disposed;
+
+        public CurrencyType DisplayCurrency { get; set; } = CurrencyType.EUR;
+        public string? SearchText { get; set; }
+        public int? UserFilter { get; set; }
+        public int? VendorFilter { get; set; }
+        public int? CategoryFilter { get; set; }
+        public WishSort SortBy { get; set; } = WishSort.Added;
+        public SortDirection SortDirection { get; set; } = SortDirection.Ascending;
+
+        private bool HasActiveFilters => !string.IsNullOrWhiteSpace(SearchText) || ActiveFilterCount > 0;
+        private int ActiveFilterCount => (UserFilter.HasValue ? 1 : 0) + (VendorFilter.HasValue ? 1 : 0) + (CategoryFilter.HasValue ? 1 : 0);
+        private bool CanEditVendor => VendorFilter is int id && id != Models.Vendor.GetUnspecified().VendorId;
+        private bool CanEditCategory => CategoryFilter is int id && id != WishCategory.GetUncategorized().CategoryId;
+
+        private string SortDirectionLabel => (SortBy, SortDirection) switch {
+            (WishSort.Added, SortDirection.Ascending) => "Oldest first",
+            (WishSort.Added, _) => "Newest first",
+            (WishSort.Rating, SortDirection.Ascending) => "Least wanted first",
+            (WishSort.Rating, _) => "Most wanted first",
+            (WishSort.Price, SortDirection.Ascending) => "Cheapest first",
+            (WishSort.Price, _) => "Most expensive first",
+            (_, SortDirection.Ascending) => "A → Z",
+            _ => "Z → A"
+        };
 
         protected override void OnInitialized() {
-            base.OnInitialized();
-            WishItems = [.. Database.GetWishes()];
-            if (HttpContextAccessor.HttpContext != null) {
-                if (HttpContextAccessor.HttpContext.Request.TryValidateLogin(out _, out User? user) && user != null) {
-                    IsLoggedIn = true;
-                    User = user;
-                }
+            if (Session.User is { } user) {
+                DisplayCurrency = user.PreferredCurrency;
             }
 
-            FilterPreferences.PropertyChanged += OnFilterPreferencesChanged;
-
-            StateHasChanged();
+            Database.Changed += OnDatabaseChanged;
+            ApplyFilters();
         }
 
         protected override async Task OnAfterRenderAsync(bool firstRender) {
             if (firstRender) {
-                await JSRuntime.InvokeVoidAsync("registerHomeComponent", ObjectReference = DotNetObjectReference.Create(this));
+                _interactive = true;
+                await RestoreFiltersAsync();
+                _restoreScrollPending = true;
+                StateHasChanged();
+                return;
+            }
+
+            if (_restoreScrollPending) {
+                _restoreScrollPending = false;
+                await JS.InvokeVoidAsync("wishstar.scroll.restore");
             }
         }
 
-        #region Events
-        private void OnCurrencyChange(ChangeEventArgs e) {
-            var selectedCurrency = (CurrencyType)Enum.Parse(typeof(CurrencyType), e.Value!.ToString()!);
-            SetPreferredCurrency(selectedCurrency);
+        #region Filtering
+
+        private void ApplyFilters() {
+            _users = Database.GetUsers();
+            _vendors = [.. Database.GetVendors().OrderBy(v => v.VendorId != Models.Vendor.GetUnspecified().VendorId).ThenBy(v => v.VendorName, StringComparer.CurrentCultureIgnoreCase)];
+            _categories = [.. Database.GetCategories().OrderBy(c => c.CategoryId != WishCategory.GetUncategorized().CategoryId).ThenBy(c => c.CategoryName, StringComparer.CurrentCultureIgnoreCase)];
+
+            // Drop filters that point at deleted entries.
+            if (VendorFilter is int vendorId && !_vendors.Any(v => v.VendorId == vendorId)) VendorFilter = null;
+            if (CategoryFilter is int categoryId && !_categories.Any(c => c.CategoryId == categoryId)) CategoryFilter = null;
+            if (UserFilter is int userId && !_users.Any(u => u.UserId == userId)) UserFilter = null;
+
+            var vendorNames = _vendors.ToDictionary(v => v.VendorId, v => v.VendorName);
+            var categoryNames = _categories.ToDictionary(c => c.CategoryId, c => c.CategoryName);
+            var userNames = _users.ToDictionary(u => u.UserId, u => u.Username);
+            int uncategorized = WishCategory.GetUncategorized().CategoryId;
+            string unspecified = Models.Vendor.GetUnspecified().VendorName;
+
+            IEnumerable<(WishItem Wish, int Index)> wishes = Database.GetWishes().Select((wish, index) => (wish, index));
+
+            if (!Session.IsLoggedIn) {
+                wishes = wishes.Where(w => !w.Wish.PrivateItem);
+            }
+
+            string? search = SearchText?.Trim();
+            if (!string.IsNullOrEmpty(search)) {
+                wishes = wishes.Where(w => w.Wish.ItemName.Contains(search, StringComparison.CurrentCultureIgnoreCase)
+                    || w.Wish.ItemDescription.Contains(search, StringComparison.CurrentCultureIgnoreCase));
+            }
+
+            if (UserFilter is int u) wishes = wishes.Where(w => w.Wish.UserId == u);
+            if (VendorFilter is int v) wishes = wishes.Where(w => w.Wish.VendorId == v);
+            if (CategoryFilter is int c) wishes = wishes.Where(w => w.Wish.CategoryId == c);
+
+            bool descending = SortDirection == SortDirection.Descending;
+            wishes = SortBy switch {
+                WishSort.Rating => descending
+                    ? wishes.OrderByDescending(w => w.Wish.Rating).ThenBy(w => w.Index)
+                    : wishes.OrderBy(w => w.Wish.Rating == 0 ? int.MaxValue : w.Wish.Rating).ThenBy(w => w.Index),
+                WishSort.Price => descending
+                    ? wishes.OrderByDescending(w => w.Wish.ItemPrice.EUR).ThenBy(w => w.Index)
+                    : wishes.OrderBy(w => w.Wish.ItemPrice.EUR).ThenBy(w => w.Index),
+                WishSort.Name => descending
+                    ? wishes.OrderByDescending(w => w.Wish.ItemName, StringComparer.CurrentCultureIgnoreCase)
+                    : wishes.OrderBy(w => w.Wish.ItemName, StringComparer.CurrentCultureIgnoreCase),
+                _ => descending ? wishes.OrderByDescending(w => w.Index) : wishes.OrderBy(w => w.Index)
+            };
+
+            _visible = [.. wishes.Select(w => new WishView(
+                w.Wish,
+                vendorNames.GetValueOrDefault(w.Wish.VendorId, unspecified),
+                w.Wish.CategoryId == uncategorized ? null : categoryNames.GetValueOrDefault(w.Wish.CategoryId),
+                userNames.GetValueOrDefault(w.Wish.UserId, "Unknown"),
+                WishService.IsSafeHttpUrl(w.Wish.ProductLink) ? w.Wish.ProductLink : null))];
         }
 
-        private void OnSearchTextChange(ChangeEventArgs e) {
-            string searchText = e.Value?.ToString() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(searchText)) {
-                FilterPreferences.SearchText = null;
-            } else {
-                FilterPreferences.SearchText = searchText;
+        private async Task ApplyFiltersAndSaveAsync() {
+            ApplyFilters();
+            await SaveFiltersAsync();
+        }
+
+        private async Task OnSortChangedAsync(ChangeEventArgs e) {
+            if (Enum.TryParse(e.Value?.ToString(), out WishSort sort) && sort != SortBy) {
+                SortBy = sort;
+                // Pick the direction people usually want for each kind of sort.
+                SortDirection = sort is WishSort.Rating ? SortDirection.Descending : SortDirection.Ascending;
+                await ApplyFiltersAndSaveAsync();
             }
         }
 
-        private void OnUserFilterChange(ChangeEventArgs e) {
-            string username = e.Value?.ToString() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(username) || username == "All Users") {
-                FilterPreferences.UserFilter = null;
-            } else {
-                FilterPreferences.UserFilter = Database.GetUserByUsername(username);
+        private async Task ToggleSortDirectionAsync() {
+            SortDirection = SortDirection == SortDirection.Ascending ? SortDirection.Descending : SortDirection.Ascending;
+            await ApplyFiltersAndSaveAsync();
+        }
+
+        private async Task ClearFiltersAsync() {
+            SearchText = null;
+            UserFilter = VendorFilter = CategoryFilter = null;
+            await ApplyFiltersAndSaveAsync();
+        }
+
+        private async Task OnCurrencyChangedAsync(ChangeEventArgs e) {
+            if (!Enum.TryParse(e.Value?.ToString(), out CurrencyType currency)) {
+                return;
+            }
+
+            DisplayCurrency = currency;
+            if (Session.User is { } user) {
+                Database.SetPreferredCurrency(user.UserId, currency);
+            }
+
+            await SaveFiltersAsync();
+        }
+
+        private async Task RestoreFiltersAsync() {
+            try {
+                string? json = await JS.InvokeAsync<string?>("wishstar.storage.get", "wishlist-filters");
+                if (string.IsNullOrEmpty(json)) {
+                    return;
+                }
+
+                var state = JsonSerializer.Deserialize<FilterState>(json, _JsonOptions);
+                if (state == null) {
+                    return;
+                }
+
+                SearchText = state.Search;
+                UserFilter = state.User;
+                VendorFilter = state.Vendor;
+                CategoryFilter = state.Category;
+                SortBy = Enum.IsDefined(state.Sort) ? state.Sort : WishSort.Added;
+                SortDirection = Enum.IsDefined(state.Direction) ? state.Direction : SortDirection.Ascending;
+                if (!Session.IsLoggedIn && state.Currency is CurrencyType currency && Enum.IsDefined(currency)) {
+                    DisplayCurrency = currency;
+                }
+
+                _filtersOpen = ActiveFilterCount > 0;
+                ApplyFilters();
+            } catch (JsonException) {
+                // Ignore stale or malformed state.
             }
         }
 
-        private void OnVendorFilterChange(string vendorName) {
-            if (string.IsNullOrWhiteSpace(vendorName) || vendorName == "All Vendors") {
-                FilterPreferences.VendorFilter = null;
-            } else if (vendorName == "+ Add Vendor") {
-                AddVendor();
-            } else {
-                FilterPreferences.VendorFilter = Database.GetVendorByName(vendorName);
+        private async Task SaveFiltersAsync() {
+            if (!_interactive) {
+                return;
             }
+
+            var state = new FilterState(SearchText, UserFilter, VendorFilter, CategoryFilter, SortBy, SortDirection, DisplayCurrency);
+            await JS.InvokeVoidAsync("wishstar.storage.set", "wishlist-filters", JsonSerializer.Serialize(state, _JsonOptions));
         }
 
-        private void OnCategoryFilterChange(string categoryName) {
-            if (string.IsNullOrWhiteSpace(categoryName) || categoryName == "All Categories") {
-                FilterPreferences.CategoryFilter = null;
-            } else if (categoryName == "+ Add Category") {
-                AddCategory();
-            } else {
-                FilterPreferences.CategoryFilter = Database.GetCategoryByName(categoryName);
-            }
+        private void OnDatabaseChanged() {
+            // Another user (or tab) changed something: refresh this view live.
+            _ = InvokeAsync(() => {
+                if (_disposed) {
+                    return;
+                }
+
+                ApplyFilters();
+                StateHasChanged();
+            });
         }
 
-        private void OnFilterPreferencesChanged(object? sender, PropertyChangedEventArgs e) {
-            List<WishItem> items = [.. Database.GetWishes()];
-
-            if (!string.IsNullOrWhiteSpace(FilterPreferences.SearchText)) {
-                items = [.. items.Where(w => w.ItemName.Contains(FilterPreferences.SearchText, StringComparison.OrdinalIgnoreCase) ||
-                    w.ItemDescription.Contains(FilterPreferences.SearchText, StringComparison.OrdinalIgnoreCase))];
-            }
-
-            if (FilterPreferences.VendorFilter != null) {
-                items = [.. items.Where(w => w.VendorId == FilterPreferences.VendorFilter.VendorId)];
-            }
-
-            if (FilterPreferences.UserFilter != null) {
-                items = [.. items.Where(w => w.UserId == FilterPreferences.UserFilter.UserId)];
-            }
-
-            if (FilterPreferences.CategoryFilter != null) {
-                items = [.. items.Where(w => w.CategoryId == FilterPreferences.CategoryFilter.CategoryId)];
-            }
-
-            if (FilterPreferences.SortDirection == SortDirection.Descending) {
-                items.Reverse();
-            }
-
-            WishItems = [.. items];
-            StateHasChanged();
-        }
         #endregion
 
-        public void ReferToLogin() {
-            NavigationManager.NavigateTo("/login", true);
-        }
+        #region Navigation & actions
 
-        public void SetPreferredCurrency(CurrencyType currency) {
-            DisplayCurrencyType = currency;
-            if (IsLoggedIn && User != null) {
-                User.PreferredCurrency = currency;
-                Database.UpdateUser(Database.GetUserById(User.UserId)!, User);
+        /// <summary>
+        /// Navigates via js/app.js, which first remembers the scroll position so returning to the list
+        /// (back button, save or cancel) lands at exactly the same spot.
+        /// </summary>
+        private async Task NavigateAwayAsync(string url) {
+            bool handled = false;
+            try {
+                handled = await JS.InvokeAsync<bool>("wishstar.nav.go", url);
+            } catch (JSException) {
+                // Fall back to plain navigation below.
             }
 
-            StateHasChanged();
-        }
-
-        public void SwitchSortDirection() {
-            FilterPreferences.SortDirection = FilterPreferences.SortDirection == SortDirection.Ascending
-                ? SortDirection.Descending
-                : SortDirection.Ascending;
-        }
-
-        public void AddWishItem() {
-            NavigationManager.NavigateToWithContext("/wish", PageContextAction.Add, context: WishPageContext.CreateDefaultWith(GetPageContext()));
-        }
-
-        public void EditWishItem(WishItem wishItem) {
-            NavigationManager.NavigateToWithContext("/wish", PageContextAction.Update,
-                context: WishPageContext.FromWish(wishItem, DisplayCurrencyType, GetPageContext()),
-                queryParameters: new() {
-                { "id", wishItem.WishId.ToString() } });
-        }
-
-        public void DeleteWishItem(WishItem wishItem) {
-            Database.DeleteWish(wishItem);
-            WishItems.Remove(wishItem);
-
-            if (File.Exists(ImageResolver.GetImagePath(wishItem.ImageName))) {
-                File.Delete(ImageResolver.GetImagePath(wishItem.ImageName));
-            }
-
-            StateHasChanged();
-        }
-
-        public void AddVendor() {
-            NavigationManager.NavigateToWithContext("/vendor", PageContextAction.Add, VendorPageContext.CreateDefaultWith(GetPageContext()));
-        }
-
-        public void EditVendor() {
-            Models.Vendor? vendor = Database.GetVendorByName(SelectedVendor);
-            if (vendor == null) {
-                return;
-            }
-
-            NavigationManager.NavigateToWithContext("/vendor", PageContextAction.Update,
-                context: VendorPageContext.FromVendor(vendor, GetPageContext()),
-                queryParameters: new() {
-                { "id", vendor.VendorId.ToString() } });
-        }
-
-        public void AddCategory() {
-            NavigationManager.NavigateToWithContext("/category", PageContextAction.Add, CategoryPageContext.CreateDefaultWith(GetPageContext()));
-        }
-
-        public void EditCategory() {
-            WishCategory? category = Database.GetCategoryByName(SelectedCategory);
-            if (category == null) {
-                return;
-            }
-
-            NavigationManager.NavigateToWithContext("/category", PageContextAction.Update, CategoryPageContext.FromCategory(category, GetPageContext()),
-                queryParameters: new() {
-                { "id", category.CategoryId.ToString() } });
-        }
-
-        public async Task DeleteCategory(WishCategory category) {
-            using var response = await HttpClient.PostAsJsonAsync("/api/categories/delete", new { Name = category.CategoryName });
-            if (response.IsSuccessStatusCode) {
-                WishItems = [.. Database.GetWishes()];
-                StateHasChanged();
+            if (!handled) {
+                NavigationManager.NavigateTo(url);
             }
         }
 
-        private static ParentPageContext GetPageContext() => ParentPageContext.Create("/wishlist");
+        private Task AddWish() => NavigateAwayAsync("/wish");
 
-        public void Dispose() {
-            FilterPreferences.PropertyChanged -= OnFilterPreferencesChanged;
-            ObjectReference?.Dispose();
+        private Task EditWish(WishItem wish) => NavigateAwayAsync($"/wish/{wish.WishId}");
+
+        private Task AddVendor() => NavigateAwayAsync($"/vendor?returnUrl={Uri.EscapeDataString("/wishlist")}");
+
+        private Task EditVendor() => VendorFilter is int id ? NavigateAwayAsync($"/vendor/{id}?returnUrl={Uri.EscapeDataString("/wishlist")}") : Task.CompletedTask;
+
+        private Task AddCategory() => NavigateAwayAsync($"/category?returnUrl={Uri.EscapeDataString("/wishlist")}");
+
+        private Task EditCategory() => CategoryFilter is int id ? NavigateAwayAsync($"/category/{id}?returnUrl={Uri.EscapeDataString("/wishlist")}") : Task.CompletedTask;
+
+        private void ConfirmDelete(WishItem wish) {
+            _confirm.Show($"\"{wish.ItemName}\" will be removed from the wishlist. This cannot be undone.", () => {
+                if (Session.IsLoggedIn) {
+                    WishService.DeleteWish(wish.WishId);
+                    ApplyFilters();
+                }
+            });
+        }
+
+        private async Task LogoutAsync() {
+            await JS.InvokeVoidAsync("wishstar.auth.logout");
+        }
+
+        #endregion
+
+        public ValueTask DisposeAsync() {
+            _disposed = true;
+            Database.Changed -= OnDatabaseChanged;
             GC.SuppressFinalize(this);
+            return ValueTask.CompletedTask;
         }
     }
 }

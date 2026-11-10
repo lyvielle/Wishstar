@@ -1,0 +1,67 @@
+@if (IsOpen)
+{
+    <div class="dialog-backdrop" @onclick="CancelAsync">
+        <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="dialog-title" @onclick:stopPropagation="true">
+            <h2 id="dialog-title">@Title</h2>
+            <p>@Message</p>
+            <div class="dialog-actions">
+                <button type="button" class="btn btn-ghost" @onclick="CancelAsync" disabled="@_busy">Cancel</button>
+                <button type="button" class="btn btn-danger" @onclick="ConfirmAsync" disabled="@_busy">
+                    @if (_busy)
+                    {
+                        <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
+                    }
+                    @ConfirmText
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Title { get; set; } = "Are you sure?";
+    [Parameter] public string ConfirmText { get; set; } = "Delete";
+
+    public bool IsOpen { get; private set; }
+    private string Message { get; set; } = string.Empty;
+    private Func<Task>? _onConfirm;
+    private bool _busy;
+
+    public void Show(string message, Func<Task> onConfirm)
+    {
+        Message = message;
+        _onConfirm = onConfirm;
+        _busy = false;
+        IsOpen = true;
+        StateHasChanged();
+    }
+
+    public void Show(string message, Action onConfirm) => Show(message, () => { onConfirm(); return Task.CompletedTask; });
+
+    private Task CancelAsync()
+    {
+        if (!_busy)
+        {
+            IsOpen = false;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task ConfirmAsync()
+    {
+        _busy = true;
+        try
+        {
+            if (_onConfirm != null)
+            {
+                await _onConfirm();
+            }
+        }
+        finally
+        {
+            _busy = false;
+            IsOpen = false;
+        }
+    }
+}

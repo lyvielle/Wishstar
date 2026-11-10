@@ -1,90 +1,57 @@
-﻿@rendermode InteractiveServer
-@page "/login"
+﻿@page "/login"
+@attribute [ExcludeFromInteractiveRouting]
 @using Wishstar.Extensions
-@using Wishstar.Models
 @inject NavigationManager NavigationManager
-@inject IHttpContextAccessor HttpContextAccessor
 
-<PageTitle>💫 Sign In - Wishstar</PageTitle>
-<HeadContent>
-	<link rel="stylesheet" href="styles/login.styles.css">
-</HeadContent>
+@* Rendered statically: the form is handled by js/app.js, so it works instantly without a server connection. *@
 
-<div class="login-container">
-	<div class="login-header">
-		<div class="logo">💫 Wishstar</div>
-		<h1>Welcome Back</h1>
-	</div>
+<PageTitle>💫 Sign in – Wishstar</PageTitle>
 
-	<form class="login-form">
-		<div class="input-group">
-			<label for="email">Email</label>
-			<input type="email" id="email" placeholder="Enter your email" required>
-		</div>
+<div class="page page-center">
+    <div class="surface login-card">
+        <div class="login-header">
+            <div class="logo">💫 Wishstar</div>
+            <h1>Welcome back</h1>
+        </div>
 
-		<div class="input-group">
-			<label for="password">Password</label>
-			<input type="password" id="password" placeholder="••••••••" required>
-		</div>
+        <form class="form" data-login-form data-return-url="@ReturnTo" method="post" action="/login" novalidate>
+            <div class="alert alert-error" data-login-error role="alert" hidden></div>
 
-		<button type="submit" class="login-btn">Sign In</button>
+            <div class="field">
+                <label for="email">Email</label>
+                <input id="email" name="email" class="input" type="email" autocomplete="username" inputmode="email"
+                       placeholder="you@example.com" required autofocus />
+            </div>
 
-		<div class="additional-options">
-			<a href="#">Forgot Password?</a>
-		</div>
+            <div class="field">
+                <label for="password">Password</label>
+                <input id="password" name="password" class="input" type="password" autocomplete="current-password"
+                       placeholder="••••••••" required />
+            </div>
 
-		<div class="signup-prompt">
-			<p>Don't have an account? <a href="#" style="font-weight: 500;">Create Account</a></p>
-		</div>
-	</form>
+            <button type="submit" class="btn btn-primary btn-block">
+                <i class="fas fa-right-to-bracket" aria-hidden="true"></i>
+                <span>Sign in</span>
+            </button>
+        </form>
+
+        <a class="link-btn login-back" href="/wishlist">
+            <i class="fas fa-arrow-left" aria-hidden="true"></i> Back to the wishlist
+        </a>
+    </div>
 </div>
-<script>
-	$(document).ready(function () {
-		$('.login-form').submit(function (e) {
-			e.preventDefault();
-
-			const $loginBtn = $('.login-btn');
-			$loginBtn.html('<i class="fas fa-spinner fa-spin"></i> Signing In...');
-			$loginBtn.prop('disabled', true);
-
-			$('.error-message').remove();
-
-			const loginData = {
-				Email: $('#email').val(),
-				Password: $('#password').val()
-			};
-
-			$.ajax({
-				type: 'POST',
-				url: '/api/login',
-				contentType: 'application/json',
-				data: JSON.stringify(loginData),
-				success: function () {
-					window.location.href = '/wishlist';
-				},
-				error: function () {
-					$('.login-form').prepend(
-						$('<div class="error-message">Invalid credentials. Please try again.</div>')
-					);
-				},
-				complete: function () {
-					$loginBtn.text('Sign In');
-					$loginBtn.prop('disabled', false);
-				}
-			});
-		});
-	});
-</script>
 
 @code {
-	protected override void OnAfterRender(bool firstRender)
-	{
-		if (HttpContextAccessor.HttpContext != null)
-		{
-			if (HttpContextAccessor.HttpContext.Request.TryValidateLogin(out _, out User? user) && user != null)
-			{
-				NavigationManager.NavigateTo("/wishlist", true);
-			}
-		}
-	}
+    [CascadingParameter] private HttpContext? HttpContext { get; set; }
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+
+    private string ReturnTo => NavigationHelper.SafeReturnUrl(ReturnUrl);
+
+    protected override void OnInitialized()
+    {
+        if (HttpContext?.Request.GetCurrentUser() != null)
+        {
+            NavigationManager.NavigateTo(ReturnTo);
+        }
+    }
 }

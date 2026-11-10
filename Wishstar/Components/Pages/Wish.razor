@@ -1,206 +1,157 @@
-﻿@rendermode InteractiveServer
-@page "/wish"
-@using Wishstar.Components.Pages.Context
-@using Wishstar.Extensions
-@using Wishstar.Models
+﻿@page "/wish"
+@page "/wish/{WishId:int}"
 @inject NavigationManager NavigationManager
-@inject IHttpContextAccessor HttpContextAccessor
-@inject HttpClient HttpClient
-@inject IJSRuntime JSRuntime
+@inject IJSRuntime JS
+@inject UserSession Session
+@inject WishDraftStore Drafts
 
-<PageTitle>💫 Create Wish - Wishstar</PageTitle>
-<HeadContent>
-	<link rel="stylesheet" href="styles/wish.styles.css">
-</HeadContent>
+<PageTitle>💫 @(IsEdit ? "Edit wish" : "New wish") – Wishstar</PageTitle>
 
-<div class="container">
-	<button class="back-btn" onclick="window.history.back()">
-		<i class="fas fa-arrow-left"></i>
-		Back
-	</button>
+@if (_notFound)
+{
+    <FormPage Title="Wish not found" OnBack="GoBackAsync">
+        <p class="muted">This wish doesn't exist anymore. It may have been deleted.</p>
+        <div class="form-actions">
+            <button type="button" class="btn btn-primary" @onclick="GoBackAsync">Back to the wishlist</button>
+        </div>
+    </FormPage>
+}
+else if (_wish != null)
+{
+    <FormPage Title="@(IsEdit ? "Edit wish" : "New wish")" Error="@_error" OnBack="GoBackAsync">
+        <form class="form" data-no-native-submit @onsubmit="SaveAsync" novalidate>
+            <div class="image-upload">
+                <label class="upload-preview @(_uploading ? "is-busy" : null) @(HasImage ? "has-image" : null)" for="wish-image">
+                    @if (HasImage)
+                    {
+                        <img src="@ImageStore.GetUrl(_wish.ImageName, ImageVariant.Medium)" alt="Wish photo" />
+                    }
+                    else
+                    {
+                        <i class="fas fa-camera" aria-hidden="true"></i>
+                        <span>Add a photo</span>
+                    }
+                    @if (_uploading)
+                    {
+                        <span class="upload-overlay">
+                            <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
+                            <span>Uploading…</span>
+                        </span>
+                    }
+                </label>
+                <input type="file" id="wish-image" class="visually-hidden" accept="image/*"
+                       @ref="_fileInput" @onchange="OnFileSelectedAsync" disabled="@_uploading" />
+                @if (HasImage && !_uploading)
+                {
+                    <label class="link-btn" for="wish-image">Change photo</label>
+                }
+            </div>
 
-	<div class="wish-form">
-		<!-- Image Upload -->
-		<div class="image-upload">
-			<div class="upload-preview" id="imagePreview">
-				<i class="fas fa-camera fa-2x" id="wishImageUploadDummy"></i>
-				<img alt="Product image" hidden id="wishImagePreview">
-				<div id="wishImageUploadText">Click to upload image</div>
-			</div>
-			<input type="file" id="imageUpload" accept="image/*" hidden onchange="uploadImage()">
-		</div>
+            <div class="field">
+                <label for="wish-name">Name <span class="required" aria-hidden="true">*</span></label>
+                <input id="wish-name" class="input" type="text" required maxlength="@WishService.MaxNameLength"
+                       placeholder="What do you wish for?" @bind="_wish.ItemName" />
+            </div>
 
-		<!-- Wish Details -->
-		<div class="form-group">
-			<label>Wish Name <span class="required">*</span></label>
-			<input type="text" id="wishName" placeholder="Enter wish name" required @bind="WishItem.ItemName">
-		</div>
+            <div class="field">
+                <span class="field-label" id="rating-label">How much do you want it?</span>
+                <StarRating @bind-Value="_wish.Rating" />
+            </div>
 
-		<div class="form-group">
-			<label>Description</label>
-			<textarea id="wishDescription" rows="3" placeholder="Add a description"
-				@bind="WishItem.ItemDescription"></textarea>
-		</div>
+            <div class="field">
+                <label for="wish-description">Description</label>
+                <textarea id="wish-description" class="input" rows="3" maxlength="@WishService.MaxDescriptionLength"
+                          placeholder="Size, color, variant, notes…" @bind="_wish.ItemDescription"></textarea>
+            </div>
 
-		<!-- Vendor Selection -->
-		<div class="form-group">
-			<label>Vendor <span class="required">*</span></label>
-			<select id="vendorSelect" required @bind="SelectedVendor">
-				@foreach (var vendor in Database.GetVendors())
-				{
-					<option value="@vendor.VendorName">@vendor.VendorName</option>
-				}
-				<option value="new" class="combo-add">
-					<i class="fas fa-plus"></i>+ Add New Vendor
-				</option>
-			</select>
-		</div>
+            <div class="field">
+                <label for="wish-link">Product link <span class="required" aria-hidden="true">*</span></label>
+                <input id="wish-link" class="input" type="url" inputmode="url" autocomplete="url" required
+                       placeholder="https://example.com/product" @bind="_wish.ProductLink" />
+            </div>
 
-		<!-- Product Link -->
-		<div class="form-group">
-			<label>Product Link <span class="required">*</span></label>
-			<input type="url" id="productLink" placeholder="https://example.com/product" required
-				@bind="WishItem.ProductLink">
-		</div>
+            <div class="field-grid">
+                <div class="field">
+                    <label for="wish-price">Price <span class="required" aria-hidden="true">*</span></label>
+                    <div class="input-group">
+                        <input id="wish-price" class="input" type="number" inputmode="decimal" min="0" step="0.01"
+                               placeholder="0.00" @bind="PriceAmount" />
+                        <select class="select" aria-label="Currency" value="@Currency" @onchange="OnCurrencyChanged">
+                            @foreach (var currency in CurrencyDescriptor.GetAllCurrencies())
+                            {
+                                <option value="@currency.Code">@currency.Code</option>
+                            }
+                        </select>
+                    </div>
+                </div>
 
-		<!-- Price & Currency -->
-		<div class="form-group">
-			<label>Price <span class="required">*</span></label>
-			<div class="price-group">
-				<input type="number" id="productPrice" placeholder="0.00" step="0.01" required @bind="PriceAmount">
-				<select id="currencySelect" @onchange="OnCurrencySelected">
-					@foreach (var currency in CurrencyDescriptor.GetAllCurrencies())
-					{
-						<option value="@currency.Code">@currency.Code</option>
-					}
-				</select>
-			</div>
-		</div>
+                <div class="field">
+                    <label for="wish-vendor">Vendor</label>
+                    <div class="input-group">
+                        <select id="wish-vendor" class="select" @bind="_wish.VendorId">
+                            @foreach (var vendor in _vendors)
+                            {
+                                <option value="@vendor.VendorId">@vendor.VendorName</option>
+                            }
+                        </select>
+                        <button type="button" class="btn btn-soft btn-icon" title="New vendor" aria-label="New vendor" @onclick="AddVendorAsync">
+                            <i class="fas fa-plus" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </div>
 
-		<!-- Category Selection -->
-		<div class="form-group">
-			<label>Category <span class="required">*</span></label>
-			<select id="categorySelect" required @bind="SelectedCategory">
-				@foreach (var category in Database.GetCategories())
-				{
-					<option value="@category.CategoryName">@category.CategoryName</option>
-				}
-				<option value="new" class="combo-add">
-					<i class="fas fa-plus"></i>+ Add New Category
-				</option>
-			</select>
-		</div>
+                <div class="field">
+                    <label for="wish-category">Category</label>
+                    <div class="input-group">
+                        <select id="wish-category" class="select" @bind="_wish.CategoryId">
+                            @foreach (var category in _categories)
+                            {
+                                <option value="@category.CategoryId">@category.CategoryName</option>
+                            }
+                        </select>
+                        <button type="button" class="btn btn-soft btn-icon" title="New category" aria-label="New category" @onclick="AddCategoryAsync">
+                            <i class="fas fa-plus" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </div>
 
-		<div class="form-group">
-			<label class="checkbox-container">
-				<input type="checkbox" id="privateCheckbox" class="private-checkbox" @bind="WishItem.PrivateItem">
-				<span class="checkmark"></span>
-				Private Item (only visible when logged in)
-			</label>
-		</div>
+                <div class="field field-switch">
+                    <label class="switch">
+                        <input type="checkbox" @bind="_wish.PrivateItem" />
+                        <span class="switch-track" aria-hidden="true"></span>
+                        <span>
+                            <strong>Private</strong>
+                            <small>Only visible when logged in</small>
+                        </span>
+                    </label>
+                </div>
+            </div>
 
-		<div class="form-actions">
-			<button class="save-btn" id="saveWish"
-				@onclick="@(() => JSRuntime.InvokeVoidAsync("saveWish", WishItem, Enum.GetName(Action)))">
-				Save Wish
-			</button>
+            <div class="form-actions">
+                @if (IsEdit)
+                {
+                    <button type="button" class="btn btn-danger-soft" @onclick="ConfirmDelete" disabled="@_saving">
+                        <i class="fas fa-trash" aria-hidden="true"></i>
+                        <span>Delete</span>
+                    </button>
+                }
+                <span class="spacer"></span>
+                <button type="button" class="btn btn-ghost" @onclick="GoBackAsync" disabled="@_saving">Cancel</button>
+                <button type="submit" class="btn btn-primary" disabled="@(_saving || _uploading)">
+                    @if (_saving)
+                    {
+                        <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
+                        <span>Saving…</span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-check" aria-hidden="true"></i>
+                        <span>Save wish</span>
+                    }
+                </button>
+            </div>
+        </form>
+    </FormPage>
 
-		</div>
-	</div>
-</div>
-
-<script>
-	function showError(message) {
-		console.error(message);
-		$('.error-message').remove();
-		$('.wish-form').prepend(
-			$(`<div class="error-message">${message}</div>`));
-	}
-
-	function setLoadingState(isLoading) {
-		if (isLoading) {
-			$('saveWish').html('<i class="fas fa-spinner fa-spin"></i> Saving...');
-			$('saveWish').prop('disabled', true);
-		} else {
-			$('saveWish').html('Save Wish');
-			$('saveWish').prop('disabled', false);
-		}
-	}
-
-	function uploadImage() {
-		const input = document.getElementById('imageUpload');
-		if (input && input.files.length > 0) {
-			const file = input.files[0];
-			const formData = new FormData();
-			formData.append('file', file);
-
-			$.ajax({
-				url: '/api/icon/upload',
-				type: 'POST',
-				data: formData,
-				processData: false,
-				contentType: false,
-				success: function (data) {
-					if (!window.registeredComponent) {
-						showError('Internal error. Uploading images is currently not supported.');
-						return;
-					}
-					window.registeredComponent.invokeMethodAsync("SetImage", data.url);
-					setImage(data.url);
-				},
-				error: function (jqXHR, textStatus, errorThrown) {
-					console.error('Upload error:', textStatus, errorThrown);
-					showError('Image upload failed. Please try again.');
-				}
-			});
-		}
-	}
-
-	function setImage(imageUrl) {
-		document.getElementById('wishImageUploadDummy').style.display = 'none';
-		document.getElementById('wishImageUploadText').style.display = 'none';
-
-		document.getElementById('wishImagePreview').hidden = false;
-		document.getElementById('wishImagePreview').src = imageUrl;
-	}
-
-	function saveWish(wishItem, action) {
-		let apiUrl = '/api/wishes/';
-		if (action === 'Update') {
-			apiUrl += 'update';
-		} else if (action == 'Add') {
-			apiUrl += 'add';
-		} else {
-			showError('Invalid action. Please try again.');
-			return;
-		}
-
-		setLoadingState(true);
-		$.ajax({
-			url: apiUrl,
-			type: 'POST',
-			contentType: 'application/json',
-			data: JSON.stringify({ WishItem: wishItem }),
-			success: function (data) {
-				window.location.href = '/wishlist';
-			},
-			error: function (jqXHR, textStatus, errorThrown) {
-				console.error('Save error:', textStatus, errorThrown);
-				showError('Failed to save wish. Please try again.');
-			},
-			complete: function () {
-				setLoadingState(false);
-			}
-		});
-	}
-
-	function registerHomeComponent(instance) {
-		if (!window.registeredComponent) {
-			window.registeredComponent = instance;
-		}
-	}
-
-	$(document).ready(function () {
-		$('#imagePreview').click(() => $('#imageUpload').click());
-	});
-</script>
+    <ConfirmDialog @ref="_confirm" Title="Delete wish?" />
+}
