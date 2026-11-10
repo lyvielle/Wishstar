@@ -1,145 +1,141 @@
-@rendermode InteractiveServer
 @page "/category"
-@using Wishstar.Components.Pages.Context
+@page "/category/{CategoryId:int}"
 @inject NavigationManager NavigationManager
-@inject IHttpContextAccessor HttpContextAccessor
-@inject IJSRuntime JSRuntime
+@inject IJSRuntime JS
+@inject UserSession Session
+@inject WishDraftStore Drafts
 
-<PageTitle>💫 Create Category - Wishstar</PageTitle>
-<HeadContent>
-    <link rel="stylesheet" href="styles/category.styles.css">
-</HeadContent>
+<PageTitle>💫 @(IsEdit ? "Edit category" : "New category") – Wishstar</PageTitle>
 
-<div class="container">
-    <button class="back-btn" @onclick="() => NavigateBack()">
-        <i class="fas fa-arrow-left"></i>
-        Back
-    </button>
+@if (_category != null)
+{
+    <FormPage Title="@(IsEdit ? "Edit category" : "New category")" Error="@_error" OnBack="GoBackAsync">
+        <form class="form" data-no-native-submit @onsubmit="SaveAsync" novalidate>
+            <div class="field">
+                <label for="category-name">Name <span class="required" aria-hidden="true">*</span></label>
+                <input id="category-name" class="input" type="text" required maxlength="@WishService.MaxNameLength"
+                       placeholder="e.g. Books" @bind="_category.CategoryName" />
+            </div>
 
-    <div class="category-form">
-        <div class="form-group">
-            <label>Category Name <span class="required">*</span></label>
-            <input type="text" id="categoryName" placeholder="Enter category name" required
-                @bind="CategoryItem.CategoryName">
-        </div>
+            <div class="field">
+                <label for="category-description">Description</label>
+                <input id="category-description" class="input" type="text" maxlength="@WishService.MaxDescriptionLength"
+                       placeholder="Optional" @bind="_category.CategoryDescription" />
+            </div>
 
-        <div class="form-group">
-            <label>Description</label>
-            <input type="text" id="categoryDescription" placeholder="Add a description (optional)"
-                @bind="CategoryItem.CategoryDescription">
-        </div>
-
-        <div class="form-actions">
-            @if (Action == PageContextAction.Update)
-            {
-                <button class="save-btn" id="deleteCategory"
-                    @onclick="@(() => JSRuntime.InvokeVoidAsync("updateCategory", CategoryItem, Enum.GetName(PageContextAction.Delete)))">
-                    Delete Category
+            <div class="form-actions">
+                @if (IsEdit)
+                {
+                    <button type="button" class="btn btn-danger-soft" @onclick="ConfirmDelete" disabled="@_saving">
+                        <i class="fas fa-trash" aria-hidden="true"></i>
+                        <span>Delete</span>
+                    </button>
+                }
+                <span class="spacer"></span>
+                <button type="button" class="btn btn-ghost" @onclick="GoBackAsync" disabled="@_saving">Cancel</button>
+                <button type="submit" class="btn btn-primary" disabled="@_saving">
+                    <i class="fas @(_saving ? "fa-circle-notch fa-spin" : "fa-check")" aria-hidden="true"></i>
+                    <span>@(IsEdit ? "Save category" : "Add category")</span>
                 </button>
-            }
-            <button class="save-btn" id="saveCategory"
-                @onclick="@(() => JSRuntime.InvokeVoidAsync("updateCategory", CategoryItem, Enum.GetName(Action)))">
-                @if (Action == PageContextAction.Update)
-                {
-                    <text>Update Category</text>
-                }
-                else if (Action == PageContextAction.Add)
-                {
-                    <text>Add Category</text>
-                }
-            </button>
-        </div>
-    </div>
-</div>
+            </div>
+        </form>
+    </FormPage>
 
-<script>
-    function disableButton($btn) {
-        if ($btn) {
-            $btn.html('<i class="fas fa-spinner fa-spin"></i> Saving...');
-            $btn.prop('disabled', true);
-        }
-    }
+    <ConfirmDialog @ref="_confirm" Title="Delete category?" />
+}
+else if (_notFound)
+{
+    <FormPage Title="Category not found" OnBack="GoBackAsync">
+        <p class="muted">This category doesn't exist anymore.</p>
+    </FormPage>
+}
 
-    function enableButton($btn, content) {
-        if ($btn) {
-            $btn.html(content);
-            $btn.prop('disabled', false);
-        }
-    }
+@code {
+    [Parameter] public int? CategoryId { get; set; }
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
 
-    function updateCategory(category, action) {
-        if (!$('#categoryName').val()) {
-            showError('Category name is required');
+    private WishCategory? _category;
+    private ConfirmDialog? _confirm;
+    private string? _error;
+    private bool _saving;
+    private bool _notFound;
+
+    private bool IsEdit => CategoryId.HasValue;
+
+    protected override void OnInitialized()
+    {
+        if (!Session.IsLoggedIn)
+        {
+            NavigationManager.RedirectToLogin();
             return;
         }
 
-        disableButton($('#saveCategory'));
-        disableButton($('#deleteCategory'));
+        if (CategoryId is int id)
+        {
+            if (id == WishCategory.GetUncategorized().CategoryId || WishDatabase.Load().GetCategoryById(id) is not { } existing)
+            {
+                _notFound = true;
+                return;
+            }
 
-        let url = '/api/categories/add';
-        if (action == 'Add') {
-            category = { WishCategory: category };
-        } else if (action === 'Update') {
-            url = "/api/categories/update";
-            category = { WishCategory: category };
-        } else if (action == 'Delete') {
-            url = "api/categories/delete";
-            category = { CategoryId: category.categoryId };
-        } else {
-            throw new Error('Unsupported action');
+            _category = (WishCategory)existing.Clone();
+        }
+        else
+        {
+            _category = WishCategory.CreateDefault();
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_category == null || _saving)
+        {
+            return;
         }
 
-        $.ajax({
-            type: 'POST',
-            url: url,
-            contentType: 'application/json',
-            data: JSON.stringify(category),
-            success: () => {
-                if (window.componentInstance) {
-                    window.componentInstance.invokeMethodAsync('NavigateBack');
-                } else {
-                    console.error("Component instance not registered.");
-                }
-            },
-            error: () => {
-                console.error('Save error:', textStatus, errorThrown);
-                showError('Failed to save category');
-            },
-            complete: () => {
-                enableButton($('#saveCategory'), 'Save Category');
-                enableButton($('#deleteCategory'), 'Delete Category');
+        _saving = true;
+        _error = null;
+        var result = IsEdit ? WishService.UpdateCategory(_category) : WishService.AddCategory(_category);
+        if (!result.Success)
+        {
+            _error = result.Error;
+            _saving = false;
+            return;
+        }
+
+        if (!IsEdit)
+        {
+            Drafts.CreatedCategoryId = _category.CategoryId;
+        }
+
+        await GoBackAsync();
+    }
+
+    private void ConfirmDelete()
+    {
+        if (_category == null || _confirm == null)
+        {
+            return;
+        }
+
+        _confirm.Show($"\"{_category.CategoryName}\" will be deleted. Its wishes are moved to \"Uncategorized\".", async () =>
+        {
+            var result = WishService.DeleteCategory(_category.CategoryId);
+            if (!result.Success)
+            {
+                _error = result.Error;
+                return;
             }
+
+            await GoBackAsync();
         });
     }
 
-    function registerCategoryInstance(instance) {
-        if (!window.componentInstance) {
-            window.componentInstance = instance;
-        }
-    }
-
-    function showError(message) {
-        $('.error-message').remove();
-        $('.category-form').prepend(
-            $(`<div class="error-message">${message}</div>`)
-        );
-    }
-</script>
-
-@code {
-    private DotNetObjectReference<Category>? _componentRef;
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private async Task GoBackAsync()
     {
-        if (firstRender)
+        if (!await JS.InvokeAsync<bool>("wishstar.nav.back"))
         {
-            _componentRef = DotNetObjectReference.Create(this);
-            await JSRuntime.InvokeVoidAsync("registerCategoryInstance", _componentRef);
+            NavigationManager.NavigateTo(NavigationHelper.SafeReturnUrl(ReturnUrl), replace: true);
         }
-    }
-
-    public void Dispose()
-    {
-        _componentRef?.Dispose();
     }
 }

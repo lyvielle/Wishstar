@@ -1,28 +1,33 @@
 ﻿using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Wishstar.Models;
+using Wishstar.Services;
 
 namespace Wishstar.Extensions {
     public static class RequestExtensions {
+        private const string UserItemKey = "Wishstar.User";
+
         public static bool TryValidateLogin(this HttpRequest request, out IActionResult? errorResult, out User? user) {
-            user = null;
             errorResult = null;
+            user = request.GetCurrentUser();
+            return user != null;
+        }
 
-            if (request.Cookies.TryGetValue("token", out string? token) && request.Cookies.TryGetValue("uid", out string? userId)) {
-                string? userAgent = request.Headers.UserAgent;
-                if (string.IsNullOrWhiteSpace(userAgent)) {
-                    errorResult = new BadRequestObjectResult("User-Agent header is required");
-                    return false;
-                }
-
-                if (!string.IsNullOrWhiteSpace(token) && !string.IsNullOrWhiteSpace(userId)) {
-                    if (PasswordCookie.Validate(token, userId, userAgent, out user)) {
-                        return true;
-                    }
-                }
+        /// <summary>Returns the logged-in user for this request (validated once and cached per request).</summary>
+        public static User? GetCurrentUser(this HttpRequest request) {
+            var items = request.HttpContext.Items;
+            if (items.TryGetValue(UserItemKey, out object? cached)) {
+                return cached as User;
             }
 
-            return false;
+            User? user = null;
+            if (request.Cookies.TryGetValue(AppConfig.AuthCookieName, out string? token)
+                && AuthTokens.TryValidate(token, out User? validated, out _)) {
+                user = validated;
+            }
+
+            items[UserItemKey] = user;
+            return user;
         }
 
         public static string GetDomain(this HttpRequest request) {
@@ -40,6 +45,5 @@ namespace Wishstar.Extensions {
                 return AppConfig.CurrentDomain;
             }
         }
-
     }
 }

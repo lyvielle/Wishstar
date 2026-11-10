@@ -6,6 +6,9 @@ app/
 # Exclude Visual Studio files
 .vs/
 
+.env
+*.env
+
 # Exclude user-specific files
 *.user
 *.suo

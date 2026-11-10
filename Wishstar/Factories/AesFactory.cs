@@ -9,9 +9,5 @@ namespace Wishstar.Factories {
 
             return aes;
         }
-
-        public static Aes CreateRegularAes() {
-            return Create(AppConfig.EncryptionKey, AppConfig.EncryptionIV);
-        }
     }
 }
