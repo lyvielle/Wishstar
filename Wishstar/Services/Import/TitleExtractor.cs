@@ -18,7 +18,7 @@ namespace Wishstar.Services.Import {
         private static partial Regex ShopUiRegex();
 
         // Wording that marks even a long line as shop UI (stock notices, search prompts, delivery promises...).
-        [GeneratedRegex(@"nur noch|\bsold\b|verkauft|refund|erstattung|verf[üu]gbar|available|warenk[öo]rb|einkaufswagen|\bcart\b|\bbasket\b|\bkaufen\b|\bbuy\b|lieferung|delivery|versand|shipping|bewertung|reviews?\b|ratings?\b|sterne|gekauft|bought|besuche|visit the|angebot|\bhelp\b|\bfind\b|\bsuche\b|\bsearch\b|anmelden|sign in|r[üu]ckgabe|returns?\b|garantie|warranty|inkl\.|incl\.|zzgl", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        [GeneratedRegex(@"nur noch|\bsold\b|verkauft|refund|erstattung|import charges|einfuhr|importgeb|\bincluded\b|inbegriffen|eligible|dispatched|versandt|order now|jetzt bestellen|verf[üu]gbar|available|warenk[öo]rb|einkaufswagen|\bcart\b|\bbasket\b|\bkaufen\b|\bbuy\b|lieferung|delivery|versand|shipping|bewertung|reviews?\b|ratings?\b|sterne|gekauft|bought|besuche|visit the|angebot|\bhelp\b|\bfind\b|\bsuche\b|\bsearch\b|anmelden|sign in|r[üu]ckgabe|returns?\b|garantie|warranty|inkl\.|incl\.|zzgl", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex StrongUiRegex();
 
         [GeneratedRegex(@"\?\s*$|^\d{1,2}[:.]\d{2}\b|www\.|https?:|\b[a-z0-9-]+\.(com|de|at|ch|co\.uk|net|org|shop|eu|fr|it|es|nl|jp)\b|[★☆]|\*{3,}|(?:\s[>›»/]\s[^>›»]+){2,}|^\W*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
@@ -31,6 +31,10 @@ namespace Wishstar.Services.Import {
         // Leading audience words carry little information on a personal wishlist.
         [GeneratedRegex(@"^(?:women'?s|men'?s|ladies|girls'?|boys'?|kids'?|unisex|damen|herren|kinder|mädchen|jungen)\s+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex AudiencePrefixRegex();
+
+        // A title cut off by the shop ("Mid Block Hee…"): the last word is incomplete.
+        [GeneratedRegex(@"\s*\S*(?:\.{2,}|…)\s*$")]
+        private static partial Regex TruncatedEndRegex();
 
         [GeneratedRegex(@"(?<=\p{L})'S\b")]
         private static partial Regex ShoutedPossessiveRegex();
@@ -69,7 +73,7 @@ namespace Wishstar.Services.Import {
 
             TitleCandidate? best = null;
             foreach (var paragraph in paragraphs) {
-                string text = Clean(string.Join(' ', paragraph.Select(l => l.Text)));
+                string text = Clean(TruncatedEndRegex().Replace(string.Join(' ', paragraph.Select(l => l.Text)), string.Empty));
                 SKRectI box = Union(paragraph.Select(l => l.Box));
                 double lineHeight = paragraph.Average(l => l.Height);
                 int words = CountWords(text);
@@ -88,7 +92,12 @@ namespace Wishstar.Services.Import {
                 double confidence = Math.Pow(paragraph.Average(l => l.Score), 3);
                 int uiHits = StrongUiRegex().Matches(text).Count;
                 double uiFactor = uiHits switch { 0 => 1.0, 1 => 0.45, _ => 0.15 };
-                double priceFactor = priceBox is SKRectI price && IsNextTo(box, price, lineHeight) ? 2.5 : 1.0;
+                // Most shops show the title above the price; some (Etsy) below it.
+                double priceFactor = priceBox is SKRectI price ? PricePosition(box, price, lineHeight) switch {
+                    > 0 => 2.5,
+                    < 0 => 1.5,
+                    _ => 1.0
+                } : 1.0;
                 double score = Math.Pow(relativeSize, 1.6) * lengthFactor * positionFactor * confidence * uiFactor * priceFactor;
 
                 if (best == null || score > best.Score) {
@@ -138,9 +147,13 @@ namespace Wishstar.Services.Import {
                 name = withoutSpecs;
             }
 
-            string withoutAudience = AudiencePrefixRegex().Replace(name, string.Empty);
-            if (CountWords(withoutAudience) >= 3) {
-                name = withoutAudience;
+            // Drop an audience word at the start or right after the brand ("LUXMAX Women's Kawaii ...").
+            string[] parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < Math.Min(2, parts.Length); i++) {
+                if (AudiencePrefixRegex().IsMatch(parts[i] + " ") && parts.Length >= 4) {
+                    name = string.Join(' ', parts.Where((_, index) => index != i));
+                    break;
+                }
             }
 
             string[] words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -164,12 +177,19 @@ namespace Wishstar.Services.Import {
             return cleaned.Trim(' ', ',', '-', '|', ':', ';', '·', '•');
         }
 
-        private static bool IsNextTo(SKRectI title, SKRectI price, double lineHeight) {
+        /// <summary>1 if the text is right above the price, -1 if right below it, 0 otherwise.</summary>
+        private static int PricePosition(SKRectI title, SKRectI price, double lineHeight) {
             bool aligned = Math.Abs(title.Left - price.Left) <= lineHeight * 3
                 || (Math.Min(title.Right, price.Right) - Math.Max(title.Left, price.Left)) > 0;
-            bool above = title.Bottom <= price.Top + lineHeight && price.Top - title.Bottom <= lineHeight * 5;
-            bool below = title.Top >= price.Bottom - lineHeight && title.Top - price.Bottom <= lineHeight * 4;
-            return aligned && (above || below);
+            if (!aligned) {
+                return 0;
+            }
+
+            if (title.Bottom <= price.Top + lineHeight && price.Top - title.Bottom <= lineHeight * 5) {
+                return 1;
+            }
+
+            return title.Top >= price.Bottom - lineHeight && title.Top - price.Bottom <= lineHeight * 4 ? -1 : 0;
         }
 
         private static bool IsTitleCandidate(OcrLine line, bool allowUiWords) {
