@@ -16,6 +16,8 @@
          asset works on the slim Debian-based ASP.NET container image without extra packages. -->
     <PackageReference Include="SkiaSharp" Version="3.119.4" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.4" />
+    <!-- Local OCR for the screenshot import (PaddleOCR v5 Latin models via ONNX Runtime, Apache-2.0). -->
+    <PackageReference Include="RapidOcrNet" Version="4.2.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -7,6 +7,7 @@ using Wishstar.Services;
 namespace Wishstar.Components.Pages {
     public partial class Wish {
         private sealed record UploadResult(bool Ok, string? FileName, string? Error);
+        private sealed record ImportResult(bool Ok, string? Error, string? Name, string? FullTitle, double? Price, string? Currency, string? FileName);
 
         [Parameter] public int? WishId { get; set; }
 
@@ -16,6 +17,7 @@ namespace Wishstar.Components.Pages {
         private Models.Vendor[] _vendors = [];
         private WishCategory[] _categories = [];
         private ElementReference _fileInput;
+        private ElementReference _screenshotInput;
         private ConfirmDialog? _confirm;
         private readonly HashSet<string> _uploadedImages = [];
 
@@ -23,6 +25,8 @@ namespace Wishstar.Components.Pages {
         private bool _notFound;
         private bool _saving;
         private bool _uploading;
+        private bool _importing;
+        private string? _importNotice;
 
         private bool IsEdit => WishId.HasValue;
         private bool HasImage => !string.IsNullOrWhiteSpace(_wish?.ImageName);
@@ -77,6 +81,80 @@ namespace Wishstar.Components.Pages {
         private void LoadLists() {
             _vendors = [.. Database.GetVendors().OrderBy(v => v.VendorId != Models.Vendor.GetUnspecified().VendorId).ThenBy(v => v.VendorName, StringComparer.CurrentCultureIgnoreCase)];
             _categories = [.. Database.GetCategories().OrderBy(c => c.CategoryId != WishCategory.GetUncategorized().CategoryId).ThenBy(c => c.CategoryName, StringComparer.CurrentCultureIgnoreCase)];
+        }
+
+        /// <summary>Pre-fills name, price and photo from a shop screenshot. Nothing is saved until the user saves.</summary>
+        private async Task OnScreenshotSelectedAsync() {
+            if (_wish == null) {
+                return;
+            }
+
+            _importing = true;
+            _error = null;
+            _importNotice = null;
+            StateHasChanged();
+
+            try {
+                var result = await JS.InvokeAsync<ImportResult>("wishstar.upload.screenshotFromInput", TimeSpan.FromMinutes(3), _screenshotInput);
+                if (!result.Ok) {
+                    _error = result.Error;
+                    return;
+                }
+
+                var filled = new List<string>();
+                var missing = new List<string>();
+
+                if (!string.IsNullOrWhiteSpace(result.Name)) {
+                    _wish.ItemName = result.Name;
+                    filled.Add("name");
+                } else {
+                    missing.Add("name");
+                }
+
+                // Keep the complete shop title, it often holds details like size or color.
+                if (!string.IsNullOrWhiteSpace(result.FullTitle) && result.FullTitle != result.Name && string.IsNullOrWhiteSpace(_wish.ItemDescription)) {
+                    _wish.ItemDescription = result.FullTitle.Length > WishService.MaxDescriptionLength
+                        ? result.FullTitle[..WishService.MaxDescriptionLength]
+                        : result.FullTitle;
+                }
+
+                if (result.Price is double price) {
+                    PriceAmount = price;
+                    if (Enum.TryParse(result.Currency, out CurrencyType currency)) {
+                        Currency = currency;
+                    }
+
+                    filled.Add("price");
+                } else {
+                    missing.Add("price");
+                }
+
+                if (!string.IsNullOrEmpty(result.FileName)) {
+                    if (_uploadedImages.Contains(_wish.ImageName) && !Database.IsImageReferenced(_wish.ImageName)) {
+                        ImageStore.Delete(_wish.ImageName);
+                    }
+
+                    _wish.ImageName = result.FileName;
+                    _uploadedImages.Add(result.FileName);
+                    filled.Add("photo");
+                } else {
+                    missing.Add("photo");
+                }
+
+                _importNotice = filled.Count == 0
+                    ? "Nothing could be recognized in this screenshot. Please fill in the wish manually."
+                    : $"Filled in {JoinList(filled)} from the screenshot. Please check {(filled.Count == 1 ? "it" : "them")}"
+                        + (missing.Count > 0 ? $" and add the {JoinList(missing)}" : string.Empty)
+                        + ", then add the product link.";
+            } catch (Exception ex) when (ex is JSException or TaskCanceledException) {
+                _error = "The screenshot could not be read. Please try again.";
+            } finally {
+                _importing = false;
+            }
+        }
+
+        private static string JoinList(List<string> items) {
+            return items.Count <= 1 ? string.Join(string.Empty, items) : $"{string.Join(", ", items[..^1])} and {items[^1]}";
         }
 
         private void OnCurrencyChanged(ChangeEventArgs e) {

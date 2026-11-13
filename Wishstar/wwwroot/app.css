@@ -369,6 +369,76 @@ textarea.input {
     color: var(--error-ink);
 }
 
+.alert-info {
+    background: rgba(255, 179, 198, 0.16);
+    border: 1px solid rgba(255, 143, 171, 0.4);
+    color: var(--primary-ink);
+    margin-bottom: 0;
+}
+
+/* ------------------------------------------------------------------ screenshot import */
+
+.import-card {
+    display: grid;
+}
+
+.import-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.9rem 1.1rem;
+    border: 2px dashed var(--primary);
+    border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, rgba(255, 229, 236, 0.9), rgba(255, 255, 255, 0.85));
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+}
+
+.import-btn:hover {
+    border-color: var(--primary-strong);
+    background: rgba(255, 229, 236, 0.95);
+}
+
+.import-btn:active {
+    transform: scale(0.99);
+}
+
+.import-card:focus-within .import-btn {
+    outline: 2px solid var(--primary-ink);
+    outline-offset: 2px;
+}
+
+.import-card.is-busy .import-btn {
+    cursor: progress;
+    border-style: solid;
+}
+
+.import-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-strong), #E2668A);
+    color: #fff;
+    font-size: 1.1rem;
+}
+
+.import-text strong,
+.import-text small {
+    display: block;
+}
+
+.import-text strong {
+    color: var(--primary-ink);
+}
+
+.import-text small {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
 .alert i {
     margin-top: 0.2rem;
 }

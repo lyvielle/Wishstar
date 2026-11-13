@@ -20,6 +20,31 @@ else if (_wish != null)
 {
     <FormPage Title="@(IsEdit ? "Edit wish" : "New wish")" Error="@_error" OnBack="GoBackAsync">
         <form class="form" data-no-native-submit @onsubmit="SaveAsync" novalidate>
+            @if (!IsEdit)
+            {
+                <div class="import-card @(_importing ? "is-busy" : null)">
+                    <label class="import-btn" for="wish-screenshot" aria-disabled="@(_importing ? "true" : "false")">
+                        <span class="import-icon" aria-hidden="true">
+                            <i class="fas @(_importing ? "fa-circle-notch fa-spin" : "fa-wand-magic-sparkles")"></i>
+                        </span>
+                        <span class="import-text">
+                            <strong>@(_importing ? "Reading screenshot…" : "Import from screenshot")</strong>
+                            <small>@(_importing ? "This takes a few seconds" : "Fills in name, price and photo from a shop screenshot")</small>
+                        </span>
+                    </label>
+                    <input type="file" id="wish-screenshot" class="visually-hidden" accept="image/*"
+                           @ref="_screenshotInput" @onchange="OnScreenshotSelectedAsync" disabled="@(_importing || _uploading)" />
+                </div>
+
+                @if (_importNotice != null)
+                {
+                    <div class="alert alert-info" role="status">
+                        <i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i>
+                        <span>@_importNotice</span>
+                    </div>
+                }
+            }
+
             <div class="image-upload">
                 <label class="upload-preview @(_uploading ? "is-busy" : null) @(HasImage ? "has-image" : null)" for="wish-image">
                     @if (HasImage)
@@ -40,7 +65,7 @@ else if (_wish != null)
                     }
                 </label>
                 <input type="file" id="wish-image" class="visually-hidden" accept="image/*"
-                       @ref="_fileInput" @onchange="OnFileSelectedAsync" disabled="@_uploading" />
+                       @ref="_fileInput" @onchange="OnFileSelectedAsync" disabled="@(_uploading || _importing)" />
                 @if (HasImage && !_uploading)
                 {
                     <label class="link-btn" for="wish-image">Change photo</label>
@@ -137,7 +162,7 @@ else if (_wish != null)
                 }
                 <span class="spacer"></span>
                 <button type="button" class="btn btn-ghost" @onclick="GoBackAsync" disabled="@_saving">Cancel</button>
-                <button type="submit" class="btn btn-primary" disabled="@(_saving || _uploading)">
+                <button type="submit" class="btn btn-primary" disabled="@(_saving || _uploading || _importing)">
                     @if (_saving)
                     {
                         <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>

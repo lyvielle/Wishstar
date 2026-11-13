@@ -1,17 +1,25 @@
 # Build & publish
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ARG TARGETARCH
 WORKDIR /src
 COPY ["Wishstar.csproj", "."]
-RUN dotnet restore "Wishstar.csproj"
+# Restore/publish for the target architecture only: otherwise native libraries (SkiaSharp, ONNX Runtime)
+# for every platform end up in the image (~500 MB extra).
+RUN dotnet restore "Wishstar.csproj" -a $TARGETARCH
 COPY . .
-RUN dotnet publish "Wishstar.csproj" -c Release -o /app/publish --no-restore /p:UseAppHost=false
+RUN dotnet publish "Wishstar.csproj" -c Release -a $TARGETARCH --self-contained false -o /app/publish --no-restore /p:UseAppHost=false
 
 # Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 EXPOSE 8080
+# Small-server friendly memory settings: workstation GC that compacts eagerly, and at most two glibc malloc
+# arenas so native memory freed by OCR/image processing is actually returned (measured: ~330 MB steady
+# instead of growing past 750 MB after a few screenshot imports).
 ENV ASPNETCORE_HTTP_PORTS=8080 \
-    DOTNET_gcServer=0
+    DOTNET_gcServer=0 \
+    DOTNET_GCConserveMemory=7 \
+    MALLOC_ARENA_MAX=2
 COPY --from=build /app/publish .
 # Configs, images and login keys live in ./app (mount it as a volume, see docker-compose.yml).
 VOLUME ["/app/app"]

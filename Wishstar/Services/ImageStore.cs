@@ -78,13 +78,25 @@ namespace Wishstar.Services {
 
         /// <summary>Decodes, normalizes and stores an uploaded image. Returns the new image name.</summary>
         public static async Task<string> SaveUploadAsync(Stream upload, CancellationToken cancellationToken) {
+            using SKBitmap bitmap = await DecodeAsync(upload, OriginalMaxSize, cancellationToken);
+            return Save(bitmap);
+        }
+
+        /// <summary>
+        /// Decodes an uploaded image (auto-rotated per EXIF, downscaled to at most <paramref name="maxSize"/> px
+        /// during decoding where the codec supports it). Throws <see cref="InvalidDataException"/> for non-images.
+        /// </summary>
+        public static async Task<SKBitmap> DecodeAsync(Stream upload, int maxSize, CancellationToken cancellationToken) {
             using var buffer = new MemoryStream();
             await upload.CopyToAsync(buffer, cancellationToken);
             buffer.Position = 0;
 
-            using SKBitmap bitmap = DecodeOriented(buffer, OriginalMaxSize)
+            return DecodeOriented(buffer, maxSize)
                 ?? throw new InvalidDataException("The uploaded file is not a supported image.");
+        }
 
+        /// <summary>Stores a decoded image (plus its variants) and returns the new image name.</summary>
+        public static string Save(SKBitmap bitmap) {
             Directory.CreateDirectory(ImageDirectory);
             string imageName = $"{IdGenerator.GetNumericalId()}.webp";
             string path = Path.Combine(ImageDirectory, imageName);

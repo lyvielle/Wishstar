@@ -26,6 +26,18 @@ Each wish entry includes:
 - **Category** - Organize wishes by selecting or creating categories
 - **Private Item** - Checkbox to restrict visibility to logged-in users only
 
+### Importing a Wish from a Screenshot
+
+On the "New wish" form, **Import from screenshot** reads a screenshot of a shop page (app or browser) and
+pre-fills the form:
+
+- **Name** – the product title, shortened (the full title goes into the description)
+- **Price & currency** – the current price; old/struck-through prices, shipping costs and monthly rates are ignored
+- **Photo** – the product photo is cropped out of the screenshot
+
+Everything is processed on your own server (local OCR, no external service), usually in under a second.
+Nothing is saved automatically: check the suggestions, then add the product link, category and so on.
+
 ### Managing Vendors & Categories
 
 ![Vendor Management](vendor-creation.png)

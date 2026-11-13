@@ -77,7 +77,7 @@
     // ------------------------------------------------------------------ image upload
     const MAX_DIMENSION = 2048;
 
-    async function downscale(file) {
+    async function downscale(file, maxDimension = MAX_DIMENSION, maxBytes = 2_500_000) {
         if (typeof createImageBitmap !== 'function') return file;
         let bitmap;
         try {
@@ -86,8 +86,8 @@
             return file; // Let the server try (e.g. formats the browser can't decode).
         }
 
-        const scale = Math.min(1, MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
-        if (scale === 1 && file.size <= 2_500_000) {
+        const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+        if (scale === 1 && file.size <= maxBytes) {
             bitmap.close();
             return file;
         }
@@ -111,33 +111,51 @@
         return blob.size < file.size ? blob : file;
     }
 
+    async function postImage(input, url, maxDimension, maxBytes, failureMessage) {
+        const file = input && input.files && input.files[0];
+        if (!file) return { ok: false, data: null, error: null };
+        if (file.type && !file.type.startsWith('image/')) {
+            input.value = '';
+            return { ok: false, data: null, error: 'Please choose an image file.' };
+        }
+
+        try {
+            const blob = await downscale(file, maxDimension, maxBytes);
+            const form = new FormData();
+            form.append('file', blob, file.name || 'image');
+            const response = await fetch(url, { method: 'POST', body: form, credentials: 'same-origin' });
+            if (!response.ok) {
+                const message = response.status === 401
+                    ? 'Your session has expired. Please log in again.'
+                    : response.status === 429
+                        ? 'Too many uploads in a short time. Please wait a moment.'
+                        : (await response.text()) || failureMessage;
+                return { ok: false, data: null, error: message.replace(/^"|"$/g, '') };
+            }
+            return { ok: true, data: await response.json(), error: null };
+        } catch {
+            return { ok: false, data: null, error: failureMessage + ' Check your connection and try again.' };
+        } finally {
+            input.value = '';
+        }
+    }
+
     const upload = {
         async fromInput(input) {
-            const file = input && input.files && input.files[0];
-            if (!file) return { ok: false, fileName: null, error: null };
-            if (file.type && !file.type.startsWith('image/')) {
-                input.value = '';
-                return { ok: false, fileName: null, error: 'Please choose an image file.' };
-            }
+            const result = await postImage(input, '/api/icon/upload', MAX_DIMENSION, 2_500_000, 'The photo could not be uploaded.');
+            return { ok: result.ok, fileName: result.data && result.data.fileName, error: result.error };
+        },
 
-            try {
-                const blob = await downscale(file);
-                const form = new FormData();
-                form.append('file', blob, file.name || 'photo');
-                const response = await fetch('/api/icon/upload', { method: 'POST', body: form, credentials: 'same-origin' });
-                if (!response.ok) {
-                    const message = response.status === 401
-                        ? 'Your session has expired. Please log in again.'
-                        : (await response.text()) || 'The photo could not be uploaded.';
-                    return { ok: false, fileName: null, error: message.replace(/^"|"$/g, '') };
-                }
-                const data = await response.json();
-                return { ok: true, fileName: data.fileName, error: null };
-            } catch {
-                return { ok: false, fileName: null, error: 'The photo could not be uploaded. Check your connection and try again.' };
-            } finally {
-                input.value = '';
-            }
+        /** Sends a shop screenshot for import. Kept large (small print must stay readable for OCR). */
+        async screenshotFromInput(input) {
+            const result = await postImage(input, '/api/import/screenshot', 2560, 8_000_000, 'The screenshot could not be read.');
+            const data = result.data || {};
+            return {
+                ok: result.ok, error: result.error,
+                name: data.name || null, fullTitle: data.fullTitle || null,
+                price: typeof data.price === 'number' ? data.price : null,
+                currency: data.currency || null, fileName: data.fileName || null
+            };
         }
     };
 
