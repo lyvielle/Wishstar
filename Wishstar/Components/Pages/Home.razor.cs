@@ -43,7 +43,7 @@ namespace Wishstar.Components.Pages {
         public int? VendorFilter { get; set; }
         public int? CategoryFilter { get; set; }
         public WishSort SortBy { get; set; } = WishSort.Added;
-        public SortDirection SortDirection { get; set; } = SortDirection.Ascending;
+        public SortDirection SortDirection { get; set; } = SortDirection.Descending;
 
         private bool HasActiveFilters => !string.IsNullOrWhiteSpace(SearchText) || ActiveFilterCount > 0;
         private int ActiveFilterCount => (UserFilter.HasValue ? 1 : 0) + (VendorFilter.HasValue ? 1 : 0) + (CategoryFilter.HasValue ? 1 : 0);
@@ -150,7 +150,7 @@ namespace Wishstar.Components.Pages {
             if (Enum.TryParse(e.Value?.ToString(), out WishSort sort) && sort != SortBy) {
                 SortBy = sort;
                 // Pick the direction people usually want for each kind of sort.
-                SortDirection = sort is WishSort.Rating ? SortDirection.Descending : SortDirection.Ascending;
+                SortDirection = sort is WishSort.Rating or WishSort.Added ? SortDirection.Descending : SortDirection.Ascending;
                 await ApplyFiltersAndSaveAsync();
             }
         }
@@ -196,7 +196,7 @@ namespace Wishstar.Components.Pages {
                 VendorFilter = state.Vendor;
                 CategoryFilter = state.Category;
                 SortBy = Enum.IsDefined(state.Sort) ? state.Sort : WishSort.Added;
-                SortDirection = Enum.IsDefined(state.Direction) ? state.Direction : SortDirection.Ascending;
+                SortDirection = Enum.IsDefined(state.Direction) ? state.Direction : SortDirection.Descending;
                 if (!Session.IsLoggedIn && state.Currency is CurrencyType currency && Enum.IsDefined(currency)) {
                     DisplayCurrency = currency;
                 }
