@@ -41,6 +41,8 @@
           crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["Wishstar.styles.css"]" />
+    @* Applies Light/Dark/Auto before the first paint (must stay synchronous). *@
+    <script src="@Assets["js/theme.js"]"></script>
     <HeadOutlet @rendermode="PageRenderMode" />
 </head>
 

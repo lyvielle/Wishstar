@@ -12,6 +12,7 @@
         <header class="app-header">
             <a class="logo" href="/wishlist" aria-label="Wishstar home">💫 Wishstar</a>
             <div class="header-actions">
+                <ThemeToggle />
                 <label class="visually-hidden" for="currency">Currency</label>
                 <select id="currency" class="select select-compact" value="@DisplayCurrency" @onchange="OnCurrencyChangedAsync">
                     @foreach (var currency in CurrencyDescriptor.GetAllCurrencies())

@@ -1,0 +1,61 @@
+@inject IJSRuntime JS
+
+@* Light / Auto / Dark. Auto switches by time of day (see wwwroot/js/theme.js); the choice is stored per device. *@
+
+@* Phones: one button that cycles Light → Auto → Dark (the three-way switch does not fit next to the logo). *@
+<button type="button" class="btn btn-ghost btn-icon theme-cycle" title="@CycleLabel" aria-label="@CycleLabel" @onclick="CycleAsync">
+    <i class="fas @(Current.Icon)" aria-hidden="true"></i>
+</button>
+
+<div class="theme-toggle" role="radiogroup" aria-label="Theme">
+    @foreach (var option in Options)
+    {
+        bool active = _preference == option.Value;
+        <button type="button"
+                class="theme-option @(active ? "is-active" : null)"
+                role="radio"
+                aria-checked="@(active ? "true" : "false")"
+                aria-label="@option.Label"
+                title="@option.Label"
+                @onclick="() => SetAsync(option.Value)">
+            <i class="fas @option.Icon" aria-hidden="true"></i>
+        </button>
+    }
+</div>
+
+@code {
+    private sealed record Option(string Value, string Icon, string Label);
+
+    private static readonly Option[] Options = [
+        new("light", "fa-sun", "Light theme"),
+        new("auto", "fa-circle-half-stroke", "Auto: dark from 20:00 to 07:00"),
+        new("dark", "fa-moon", "Dark theme")
+    ];
+
+    // Unknown until the browser reports the stored choice (it lives in localStorage, not on the server).
+    private string? _preference;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _preference = await JS.InvokeAsync<string>("wishstarTheme.get");
+            StateHasChanged();
+        }
+    }
+
+    private Option Current => Options.FirstOrDefault(o => o.Value == _preference) ?? Options[1];
+
+    private string CycleLabel => $"{Current.Label} (tap to change)";
+
+    private Task CycleAsync()
+    {
+        int index = Array.IndexOf(Options, Current);
+        return SetAsync(Options[(index + 1) % Options.Length].Value);
+    }
+
+    private async Task SetAsync(string preference)
+    {
+        _preference = await JS.InvokeAsync<string>("wishstarTheme.set", preference);
+    }
+}

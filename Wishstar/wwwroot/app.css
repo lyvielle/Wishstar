@@ -24,6 +24,69 @@
     --gutter: clamp(0.75rem, 3vw, 2rem);
     --control-height: 2.75rem;
     --font: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+
+    /* Surfaces (light theme) */
+    color-scheme: light;
+    --page-bg: linear-gradient(135deg, #FFF0F3, #FFFAFB);
+    --field-bg: rgba(255, 255, 255, 0.85);
+    --placeholder: #A99DA1;
+    --focus-ring: rgba(255, 179, 198, 0.45);
+    --import-bg: linear-gradient(135deg, rgba(255, 229, 236, 0.9), rgba(255, 255, 255, 0.85));
+    --import-bg-hover: rgba(255, 229, 236, 0.95);
+    --card-border: rgba(255, 179, 198, 0.25);
+    --media-bg: linear-gradient(135deg, #FFE9EF, #FFF6F8);
+    --overlay-bg: rgba(255, 255, 255, 0.92);
+    --overlay-shadow: rgba(0, 0, 0, 0.08);
+    --star-off: #E8D3D9;
+    --switch-off: #EADDE1;
+    --upload-bg: rgba(255, 255, 255, 0.7);
+    --upload-bg-hover: rgba(255, 229, 236, 0.6);
+    --upload-overlay: rgba(255, 245, 247, 0.85);
+    --backdrop: rgba(74, 74, 74, 0.35);
+    --popover-bg: #fff;
+    --popover-shadow: rgba(0, 0, 0, 0.18);
+    --panel-bg: rgba(255, 255, 255, 0.55);
+    --image-filter: none;
+}
+
+/* Dark × pink: same pink accents on a deep plum-black, softer contrast for night-time reading. */
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --primary: #F59AB4;
+    --primary-strong: #F07FA0;
+    --primary-ink: #FF9EBA;
+    --secondary: #3B2A33;
+    --mica: rgba(33, 24, 30, 0.94);
+    --surface: #2A1F26;
+    --text: #EADDE2;
+    --text-muted: #A8979F;
+    --error: #FF7A7A;
+    --error-ink: #FF9C9C;
+    --border: rgba(245, 154, 180, 0.16);
+    --shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    --shadow-hover: 0 10px 28px rgba(0, 0, 0, 0.45);
+
+    --page-bg: linear-gradient(135deg, #1B1218, #120D11);
+    --field-bg: #1E161B;
+    --placeholder: #7E6E76;
+    --focus-ring: rgba(245, 154, 180, 0.35);
+    --import-bg: linear-gradient(135deg, rgba(245, 154, 180, 0.12), rgba(42, 31, 38, 0.9));
+    --import-bg-hover: rgba(245, 154, 180, 0.16);
+    --card-border: rgba(245, 154, 180, 0.14);
+    --media-bg: linear-gradient(135deg, #2F2229, #241A20);
+    --overlay-bg: rgba(30, 22, 27, 0.88);
+    --overlay-shadow: rgba(0, 0, 0, 0.4);
+    --star-off: #4E3C45;
+    --switch-off: #4A3942;
+    --upload-bg: #1E161B;
+    --upload-bg-hover: rgba(245, 154, 180, 0.1);
+    --upload-overlay: rgba(27, 18, 24, 0.85);
+    --backdrop: rgba(0, 0, 0, 0.6);
+    --popover-bg: #2A1F26;
+    --popover-shadow: rgba(0, 0, 0, 0.55);
+    --panel-bg: rgba(255, 255, 255, 0.03);
+    /* Bright product photos are the main source of glare at night. */
+    --image-filter: brightness(0.88);
 }
 
 *,
@@ -45,7 +108,7 @@ body {
     color: var(--text);
     line-height: 1.5;
     /* Static gradient: the old infinite background animation repainted the whole page every frame. */
-    background: linear-gradient(135deg, #FFF0F3, #FFFAFB) fixed;
+    background: var(--page-bg) fixed;
     -webkit-tap-highlight-color: transparent;
 }
 
@@ -60,6 +123,11 @@ a {
 
 img {
     max-width: 100%;
+}
+
+.wish-media img,
+.upload-preview img {
+    filter: var(--image-filter);
 }
 
 :focus-visible {
@@ -154,6 +222,42 @@ h1:focus {
     min-width: 0;
 }
 
+.theme-toggle {
+    display: inline-flex;
+    padding: 0.2rem;
+    gap: 0.1rem;
+    border: 1px solid var(--secondary);
+    border-radius: 2rem;
+    background: var(--field-bg);
+}
+
+.btn.theme-cycle {
+    display: none;
+}
+
+.theme-option {
+    display: grid;
+    place-items: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.theme-option:hover {
+    color: var(--primary-ink);
+}
+
+.theme-option.is-active {
+    background: linear-gradient(135deg, var(--primary-strong), #E2668A);
+    color: #fff;
+}
+
 .header-user {
     display: inline-flex;
     align-items: center;
@@ -172,7 +276,7 @@ h1:focus {
     padding: 0.6rem 1.1rem;
     border: 1px solid var(--secondary);
     border-radius: var(--radius-sm);
-    background: rgba(255, 255, 255, 0.85);
+    background: var(--field-bg);
     color: var(--text);
     font: inherit;
     font-size: 1rem; /* >= 16px prevents iOS from zooming into focused inputs */
@@ -180,7 +284,7 @@ h1:focus {
 }
 
 .input::placeholder {
-    color: #A99DA1;
+    color: var(--placeholder);
 }
 
 .input:hover,
@@ -192,7 +296,7 @@ h1:focus {
 .select:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(255, 179, 198, 0.45);
+    box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 textarea.input {
@@ -389,14 +493,14 @@ textarea.input {
     padding: 0.9rem 1.1rem;
     border: 2px dashed var(--primary);
     border-radius: var(--radius-sm);
-    background: linear-gradient(135deg, rgba(255, 229, 236, 0.9), rgba(255, 255, 255, 0.85));
+    background: var(--import-bg);
     cursor: pointer;
     transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
 }
 
 .import-btn:hover {
     border-color: var(--primary-strong);
-    background: rgba(255, 229, 236, 0.95);
+    background: var(--import-bg-hover);
 }
 
 .import-btn:active {
@@ -530,7 +634,7 @@ textarea.input {
     flex-direction: column;
     min-width: 0;
     background: var(--surface);
-    border: 1px solid rgba(255, 179, 198, 0.25);
+    border: 1px solid var(--card-border);
     border-radius: var(--radius-md);
     overflow: hidden;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -546,7 +650,7 @@ textarea.input {
 .wish-media {
     display: block;
     aspect-ratio: 4 / 3;
-    background: linear-gradient(135deg, #FFE9EF, #FFF6F8);
+    background: var(--media-bg);
     overflow: hidden;
 }
 
@@ -582,10 +686,10 @@ textarea.input {
     width: 2rem;
     height: 2rem;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.92);
+    background: var(--overlay-bg);
     color: var(--primary-ink);
     font-size: 0.8rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px var(--overlay-shadow);
 }
 
 .wish-actions {
@@ -603,10 +707,10 @@ textarea.input {
     height: 2.25rem;
     border: none;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.92);
+    background: var(--overlay-bg);
     color: var(--text);
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px var(--overlay-shadow);
     transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 
@@ -685,7 +789,7 @@ textarea.input {
     gap: 0.5rem;
     margin-top: auto;
     padding-top: 0.85rem;
-    border-top: 1px solid rgba(255, 179, 198, 0.25);
+    border-top: 1px solid var(--card-border);
 }
 
 .wish-price {
@@ -736,7 +840,7 @@ textarea.input {
     display: inline-flex;
     align-items: center;
     gap: 0.1rem;
-    color: #E8D3D9;
+    color: var(--star-off);
     white-space: nowrap;
 }
 
@@ -762,7 +866,7 @@ textarea.input {
     border: none;
     border-radius: 50%;
     background: transparent;
-    color: #E2C6CE;
+    color: var(--star-off);
     font-size: 1.6rem;
     cursor: pointer;
     transition: transform 0.12s ease, color 0.12s ease;
@@ -906,7 +1010,7 @@ textarea.input {
     width: 2.9rem;
     height: 1.7rem;
     border-radius: 1rem;
-    background: #EADDE1;
+    background: var(--switch-off);
     transition: background-color 0.2s ease;
 }
 
@@ -977,7 +1081,7 @@ textarea.input {
     aspect-ratio: 4 / 3;
     border: 2px dashed var(--primary);
     border-radius: var(--radius-sm);
-    background: rgba(255, 255, 255, 0.7);
+    background: var(--upload-bg);
     color: var(--primary-ink);
     font-weight: 600;
     cursor: pointer;
@@ -986,7 +1090,7 @@ textarea.input {
 }
 
 .upload-preview:hover {
-    background: rgba(255, 229, 236, 0.6);
+    background: var(--upload-bg-hover);
 }
 
 .upload-preview i {
@@ -1013,7 +1117,7 @@ textarea.input {
     place-items: center;
     align-content: center;
     gap: 0.5rem;
-    background: rgba(255, 245, 247, 0.85);
+    background: var(--upload-overlay);
 }
 
 .upload-preview.is-busy {
@@ -1062,16 +1166,16 @@ input[type="file"]:focus-visible + .upload-preview,
     display: grid;
     place-items: center;
     padding: 1rem;
-    background: rgba(74, 74, 74, 0.35);
+    background: var(--backdrop);
     animation: fade-in 0.15s ease;
 }
 
 .dialog {
     width: min(100%, 420px);
     padding: 1.75rem;
-    background: #fff;
+    background: var(--popover-bg);
     border-radius: var(--radius-md);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 20px 60px var(--popover-shadow);
     animation: pop-in 0.18s ease;
 }
 
@@ -1104,11 +1208,11 @@ input[type="file"]:focus-visible + .upload-preview,
     gap: 0.6rem;
     padding: 0.6rem 1.1rem;
     border-radius: 2rem;
-    background: #fff;
+    background: var(--popover-bg);
     color: var(--text);
     font-size: 0.9rem;
     font-weight: 600;
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 6px 24px var(--popover-shadow);
     transform: translateX(-50%);
 }
 
@@ -1192,7 +1296,7 @@ input[type="file"]:focus-visible + .upload-preview,
         grid-template-columns: 1fr;
         padding: 1rem;
         border-radius: var(--radius-sm);
-        background: rgba(255, 255, 255, 0.55);
+        background: var(--panel-bg);
         border: 1px solid var(--border);
     }
 
@@ -1207,6 +1311,23 @@ input[type="file"]:focus-visible + .upload-preview,
 
     .header-user {
         display: none;
+    }
+
+    .theme-toggle {
+        display: none;
+    }
+
+    .btn.theme-cycle {
+        display: inline-flex;
+    }
+
+    .app-header .btn-icon {
+        width: 2.4rem;
+        min-height: 2.4rem;
+    }
+
+    .header-actions {
+        gap: 0.25rem;
     }
 
     .app-header .select-compact {
@@ -1344,7 +1465,28 @@ input[type="file"]:focus-visible + .upload-preview,
 
 @media (max-width: 380px) {
     .header-actions .select-compact {
-        max-width: 7rem;
+        max-width: 6.2rem;
+        padding-left: 0.7rem;
+        padding-right: 1.9rem;
+        background-position: calc(100% - 0.95rem) 50%, calc(100% - 0.6rem) 50%;
+    }
+
+    .logo {
+        font-size: 1.2rem;
+    }
+}
+
+@media (max-width: 340px) {
+    .logo {
+        font-size: 1.05rem;
+    }
+
+    .header-actions .select-compact {
+        max-width: 5.4rem;
+    }
+
+    .app-header .btn-icon {
+        width: 2.2rem;
     }
 
     .btn-filters span:not(.pill) {

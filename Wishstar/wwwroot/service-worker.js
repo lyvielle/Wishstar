@@ -1,7 +1,7 @@
 // Wishstar service worker: makes the app installable, speeds up repeat visits and shows an offline page.
 // Pages themselves are always fetched from the network (Blazor Server needs the live connection);
 // static assets and wish images are served from cache.
-const VERSION = 'v3';
+const VERSION = 'v4';
 const SHELL_CACHE = `wishstar-shell-${VERSION}`;
 const STATIC_CACHE = `wishstar-static-${VERSION}`;
 const IMAGE_CACHE = `wishstar-img-${VERSION}`;
@@ -9,6 +9,7 @@ const MAX_IMAGES = 400;
 
 const SHELL_ASSETS = [
     '/offline.html',
+    '/js/theme.js',
     '/manifest.webmanifest',
     '/resources/favicon.svg',
     '/resources/favicon-96x96.png',

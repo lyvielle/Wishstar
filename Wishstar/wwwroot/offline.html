@@ -6,8 +6,12 @@
     <meta name="theme-color" content="#FE8069" />
     <title>💫 Offline – Wishstar</title>
     <link rel="icon" type="image/svg+xml" href="/resources/favicon.svg" />
+    <script src="/js/theme.js"></script>
     <style>
         :root { --primary: #FFB3C6; --primary-ink: #C4506E; --secondary: #FFE5EC; --text: #4A4A4A; }
+        :root[data-theme="dark"] { --primary: #F59AB4; --primary-ink: #FF9EBA; --text: #EADDE2; color-scheme: dark; }
+        :root[data-theme="dark"] body { background: linear-gradient(135deg, #1B1218, #120D11); }
+        :root[data-theme="dark"] .card { background: rgba(33, 24, 30, 0.94); border-color: rgba(245, 154, 180, 0.16); }
         * { box-sizing: border-box; }
         body {
             margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 1rem;
