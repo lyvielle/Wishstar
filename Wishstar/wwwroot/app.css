@@ -1193,6 +1193,7 @@ input[type="file"]:focus-visible + .upload-preview,
 .dialog-actions {
     display: flex;
     justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 0.5rem;
 }
 

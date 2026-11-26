@@ -159,6 +159,43 @@
         }
     };
 
+    // ------------------------------------------------------------------ paste
+    // The wish form listens for pasted images (Ctrl+V); the file waits here until the user picks what it is for.
+    let pastedFile = null;
+    let pasteHandler = null;
+
+    const paste = {
+        listen(dotNetRef) {
+            paste.stop();
+            pasteHandler = (event) => {
+                const data = event.clipboardData;
+                const file = data && [...data.files].find(f => f.type.startsWith('image/'));
+                if (!file) return;
+                // Text pasted into a field keeps working, even when the clipboard also holds an image.
+                const target = event.target;
+                if ((target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) && data.types.includes('text/plain')) return;
+                event.preventDefault();
+                pastedFile = file;
+                dotNetRef.invokeMethodAsync('OnImagePasted');
+            };
+            document.addEventListener('paste', pasteHandler);
+        },
+        stop() {
+            if (pasteHandler) document.removeEventListener('paste', pasteHandler);
+            pasteHandler = null;
+            pastedFile = null;
+        },
+        /** Puts the pasted image into a file input, so the regular upload/import code can send it. */
+        attach(input) {
+            if (!pastedFile || !input) return false;
+            const transfer = new DataTransfer();
+            transfer.items.add(pastedFile);
+            input.files = transfer.files;
+            pastedFile = null;
+            return true;
+        }
+    };
+
     // ------------------------------------------------------------------ auth
     const IMAGE_CACHE_PREFIX = 'wishstar-img';
 
@@ -266,7 +303,7 @@
     window.addEventListener('online', () => { if (reconnectState === 'failed') reconnectNow(); });
 
     // ------------------------------------------------------------------ start
-    window.wishstar = { storage, scroll, nav, upload, auth };
+    window.wishstar = { storage, scroll, nav, upload, paste, auth };
 
     if (!window.Blazor) {
         console.error('Wishstar: _framework/blazor.web.js failed to load; interactive features are unavailable.');

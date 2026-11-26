@@ -27,6 +27,8 @@ namespace Wishstar.Components.Pages {
         private bool _uploading;
         private bool _importing;
         private string? _importNotice;
+        private bool _pasteChoice;
+        private DotNetObjectReference<Wish>? _selfRef;
 
         private bool IsEdit => WishId.HasValue;
         private bool HasImage => !string.IsNullOrWhiteSpace(_wish?.ImageName);
@@ -76,6 +78,49 @@ namespace Wishstar.Components.Pages {
             } else {
                 _wish = WishItem.CreateDefault(user.UserId);
             }
+        }
+
+        protected override async Task OnAfterRenderAsync(bool firstRender) {
+            if (firstRender && _wish != null) {
+                _selfRef = DotNetObjectReference.Create(this);
+                await JS.InvokeVoidAsync("wishstar.paste.listen", _selfRef);
+            }
+        }
+
+        /// <summary>Called by the page's paste listener when an image was pasted (Ctrl+V).</summary>
+        [JSInvokable]
+        public async Task OnImagePasted() {
+            if (_wish == null || _uploading || _importing || _saving) {
+                return;
+            }
+
+            if (IsEdit) {
+                // Import is only offered for new wishes, so a pasted image can only be the photo.
+                await UsePastedAsync(import: false);
+            } else {
+                _pasteChoice = true;
+            }
+
+            StateHasChanged();
+        }
+
+        private async Task UsePastedAsync(bool import) {
+            _pasteChoice = false;
+            if (!await JS.InvokeAsync<bool>("wishstar.paste.attach", import ? _screenshotInput : _fileInput)) {
+                return;
+            }
+
+            await (import ? OnScreenshotSelectedAsync() : OnFileSelectedAsync());
+        }
+
+        public async ValueTask DisposeAsync() {
+            try {
+                await JS.InvokeVoidAsync("wishstar.paste.stop");
+            } catch (JSDisconnectedException) {
+                // Circuit is gone, and the listener with it.
+            }
+
+            _selfRef?.Dispose();
         }
 
         private void LoadLists() {
